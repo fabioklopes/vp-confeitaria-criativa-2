@@ -1,0 +1,11 @@
+.wwebjs_auth/
+.wwebjs_cache/
+
+sql/
+upload/
+.editorconfig
+.env
+
+config.js
+db.js
+descritivo.txt
