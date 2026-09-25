@@ -1,11 +1,24 @@
 .wwebjs_auth/
 .wwebjs_cache/
+node_modules/
 
 sql/
 upload/
 .editorconfig
-.env
 
-config.js
-db.js
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+
+*.log
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.dump
+*.sql.gz
+
 descritivo.txt

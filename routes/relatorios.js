@@ -127,6 +127,7 @@ async function gerarCliente(doc, cliente) {
   const info = [
     ['CPF/CNPJ', cliente.cpf_cnpj || '-'],
     ['Telefone', (cliente.telefone || '-') + (cliente.whatsapp ? ' (WhatsApp)' : '')],
+    ['Campanhas', cliente.desabilitar_whatsapp ? 'Desabilitadas' : 'Habilitadas'],
     ['E-mail', cliente.email || '-'],
     ['Endereço', [cliente.endereco, cliente.bairro].filter(Boolean).join(' - ') || '-'],
     ['CEP', cliente.cep || '-'],

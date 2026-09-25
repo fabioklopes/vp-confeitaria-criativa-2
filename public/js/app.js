@@ -246,7 +246,7 @@ async function clientes() {
       <td><strong>${esc(c.nome)}</strong></td>
       <td>${esc(c.cpf_cnpj || '-')}</td>
       <td>${esc(c.telefone || '-')}</td>
-      <td><span class="badge ${c.whatsapp ? 'text-bg-success' : 'text-bg-secondary'} badge-whats">${c.whatsapp ? 'Sim' : 'Não'}</span></td>
+      <td><span class="badge ${c.whatsapp ? 'text-bg-success' : 'text-bg-secondary'} badge-whats">${c.whatsapp ? 'Sim' : 'Não'}</span>${c.desabilitar_whatsapp ? '<span class="badge text-bg-danger ms-1">Campanhas desabilitadas</span>' : ''}</td>
       <td>${esc(c.email || '-')}</td>
       <td>${esc([c.endereco, c.bairro].filter(Boolean).join(' - ') || '-')}</td>
       <td>${esc(c.cep || '-')}</td>
@@ -278,6 +278,7 @@ async function clientes() {
   window.App.salvarCliente = async (id) => {
     const b = formData('formCliente');
     b.whatsapp = b.whatsapp === '1' || b.whatsapp === true;
+    b.desabilitar_whatsapp = b.desabilitar_whatsapp === true;
     try {
       id
         ? await api(`/api/clientes/${id}`, { method: 'PUT', body: b })
@@ -301,6 +302,7 @@ function htmlFormCliente(c) {
   const id = c ? c.id : null;
   const v = field => c ? esc(c[field] ?? '') : '';
   const whats = (c ? Number(c.whatsapp) : 1) === 1 ? '1' : '0';
+  const desabilitarWhatsapp = c ? Number(c.desabilitar_whatsapp) === 1 : false;
   return `
   <div class="modal fade" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -324,6 +326,13 @@ function htmlFormCliente(c) {
               </select></div>
             <div class="col-md-6"><label class="form-label">E-mail</label>
               <input name="email" class="form-control" value="${v('email')}"></div>
+            <div class="col-12 form-check form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" id="clienteDesabilitarWhatsapp" name="desabilitar_whatsapp" ${desabilitarWhatsapp ? 'checked' : ''}>
+              <label class="form-check-label" for="clienteDesabilitarWhatsapp">
+                <strong>Desabilitar WhatsApp</strong>
+                <span class="d-block small text-muted">Não enviar campanhas via WhatsApp para este cliente.</span>
+              </label>
+            </div>
             <div class="col-md-8"><label class="form-label">Endereço</label>
               <input name="endereco" class="form-control" value="${v('endereco')}"></div>
             <div class="col-6 col-md-4"><label class="form-label">Bairro</label>
@@ -375,7 +384,7 @@ async function campanhas() {
     <div class="alert alert-light border small mb-0" style="background:#fafafa">
       <span class="material-symbols-outlined" style="font-size:1rem">info</span>
       O arquivo anexado é salvo como <code>AAAA-MM-DD-Campanha-nome-da-campanha.ext</code>.
-      Ao enviar por WhatsApp, a imagem/PDF + a descrição são enviados aos clientes com WhatsApp = Sim, em fila com intervalos e pausas automáticas.
+      Ao enviar por WhatsApp, a imagem/PDF + a descrição são enviados aos clientes com WhatsApp = Sim e campanhas habilitadas, em fila com intervalos e pausas automáticas.
     </div>`;
 
   const tbody = $('#tbody');
@@ -425,7 +434,7 @@ async function campanhas() {
       toast('Campanha salva com sucesso.');
       campanhas();
       if (!id && r.arquivo && r.clientes_whatsapp > 0) {
-        if (confirm(`Enviar esta campanha para ${r.clientes_whatsapp} cliente(s) com WhatsApp = Sim?\n\nA imagem/PDF e a descrição serão enviados automaticamente.`)) {
+        if (confirm(`Enviar esta campanha para ${r.clientes_whatsapp} cliente(s) com WhatsApp = Sim e campanhas habilitadas?\n\nA imagem/PDF e a descrição serão enviados automaticamente.`)) {
           App.enviarCampanha(r.id);
         } else {
           toast('Campanha salva sem envio.', 'danger');

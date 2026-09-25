@@ -9,7 +9,7 @@ const wa = require('../lib/whatsapp');
 const router = express.Router();
 
 const DIR_CAMPANHAS = path.join(config.uploadDir, 'campanhas');
-fs.mkdirSync(DIR_CAMPANHAS, { recursive: true });
+fs.mkdirSync(DIR_CAMPANHAS, { recursive: true, mode: 0o700 });
 
 const FORMATOS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.svg', '.gif']);
 
@@ -134,7 +134,7 @@ router.post('/', uploadSingle('arquivo'), async (req, res, next) => {
       'INSERT INTO tb_capanhas (nome, descricao, data_inicio, data_termino, arquivo) VALUES (?,?,?,?,?)',
       [b.nome, b.descricao || null, b.data_inicio, b.data_termino || null, arquivo]
     );
-    const cont = await db.query('SELECT COUNT(*) c FROM tb_clientes WHERE whatsapp = 1');
+    const cont = await db.query('SELECT COUNT(*) c FROM tb_clientes WHERE whatsapp = 1 AND desabilitar_whatsapp = 0');
     res.status(201).json({
       id: r.insertId,
       mensagem: 'Campanha cadastrada com sucesso.',
@@ -198,8 +198,7 @@ router.post('/:id/enviar', async (req, res, next) => {
     const result = await wa.enviarCampanha(camp[0].id, mediaPath, camp[0].descricao || '');
     res.json(result);
   } catch (e) {
-    if (e.status) res.status(e.status).json({ erro: e.message });
-    else res.status(400).json({ erro: e.message });
+    next(e);
   }
 });
 

@@ -3,6 +3,10 @@ const db = require('../db');
 
 const router = express.Router();
 
+function flag(value) {
+  return value === true || value === 1 || value === '1' ? 1 : 0;
+}
+
 function validar(body) {
   if (!body.nome) return 'Informe o nome do cliente.';
   return null;
@@ -11,7 +15,7 @@ function validar(body) {
 router.get('/', async (req, res, next) => {
   try {
     const rows = await db.query(
-      'SELECT id, nome, cpf_cnpj, telefone, whatsapp, email, endereco, bairro, cep, created_at ' +
+      'SELECT id, nome, cpf_cnpj, telefone, whatsapp, desabilitar_whatsapp, email, endereco, bairro, cep, created_at ' +
       'FROM tb_clientes ORDER BY created_at DESC, id DESC'
     );
     res.json(rows);
@@ -32,10 +36,10 @@ router.post('/', async (req, res, next) => {
     if (erro) return res.status(400).json({ erro });
     const b = req.body;
     const r = await db.query(
-      'INSERT INTO tb_clientes (nome, cpf_cnpj, telefone, whatsapp, email, endereco, bairro, cep) ' +
-      'VALUES (?,?,?,?,?,?,?,?)',
-      [b.nome, b.cpf_cnpj || null, b.telefone || null,
-       b.whatsapp ? 1 : 0, b.email || null, b.endereco || null, b.bairro || null, b.cep || null]
+      'INSERT INTO tb_clientes (nome, cpf_cnpj, telefone, whatsapp, desabilitar_whatsapp, email, endereco, bairro, cep) ' +
+      'VALUES (?,?,?,?,?,?,?,?,?)',
+      [b.nome, b.cpf_cnpj || null, b.telefone || null, flag(b.whatsapp), flag(b.desabilitar_whatsapp),
+       b.email || null, b.endereco || null, b.bairro || null, b.cep || null]
     );
     res.status(201).json({ id: r.insertId, mensagem: 'Cliente cadastrado com sucesso.' });
   } catch (e) { next(e); }
@@ -47,10 +51,11 @@ router.put('/:id', async (req, res, next) => {
     if (erro) return res.status(400).json({ erro });
     const b = req.body;
     const r = await db.query(
-      'UPDATE tb_clientes SET nome=?, cpf_cnpj=?, telefone=?, whatsapp=?, email=?, endereco=?, bairro=?, cep=? ' +
+      'UPDATE tb_clientes SET nome=?, cpf_cnpj=?, telefone=?, whatsapp=?, desabilitar_whatsapp=COALESCE(?, desabilitar_whatsapp), email=?, endereco=?, bairro=?, cep=? ' +
       'WHERE id=?',
-      [b.nome, b.cpf_cnpj || null, b.telefone || null,
-       b.whatsapp ? 1 : 0, b.email || null, b.endereco || null, b.bairro || null, b.cep || null, req.params.id]
+      [b.nome, b.cpf_cnpj || null, b.telefone || null, flag(b.whatsapp),
+       b.desabilitar_whatsapp === undefined ? null : flag(b.desabilitar_whatsapp),
+       b.email || null, b.endereco || null, b.bairro || null, b.cep || null, req.params.id]
     );
     if (!r.affectedRows) return res.status(404).json({ erro: 'Cliente não encontrado.' });
     res.json({ mensagem: 'Cliente atualizado com sucesso.' });
