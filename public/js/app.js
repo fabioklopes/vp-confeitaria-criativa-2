@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function dashboard() {
   const d = await api('/api/dashboard');
   const stat = (icon, cor, label, valor) => `
-    <div class="col-6 col-md-4 col-xl-2 mb-3">
+    <div class="col-12 col-sm-6 col-md-4 col-xl-2">
       <div class="stat-card d-flex align-items-center gap-3">
         <div class="icon" style="background:${cor}"><span class="material-symbols-outlined">${icon}</span></div>
         <div class="lh-1">
@@ -176,9 +176,9 @@ async function dashboard() {
     </div>`;
 
   const recentCard = (titulo, icon, cor, itens, rota, contagem) => `
-    <div class="col-md-6 col-xl-4 mb-3">
+    <div class="col-12 col-md-6 col-xl-4">
       <div class="recent-card">
-        <h6 class="mb-2"><span class="material-symbols-outlined" style="color:${cor}">${icon}</span> ${titulo}
+        <h6><span class="material-symbols-outlined" style="color:${cor}">${icon}</span> ${titulo}
           <span class="badge text-bg-light ms-1">${contagem}</span></h6>
         <ul class="list-group list-group-flush flex-grow-1">
           ${itens.length
@@ -196,7 +196,7 @@ async function dashboard() {
 
   const r = d.recentes;
   $('#content').innerHTML = `
-    <div class="row mb-4">
+    <div class="row g-3">
       ${stat('people', '#4a7cc7', 'Clientes', d.totais.clientes)}
       ${stat('campaign', '#e67e22', 'Campanhas', d.totais.campanhas)}
       ${stat('inventory_2', '#16a085', 'Insumos', d.totais.insumos)}
@@ -204,12 +204,12 @@ async function dashboard() {
       ${stat('sell', '#2c3e50', 'Precificação', d.totais.precificacao)}
       ${stat('account_balance_wallet', '#27ae60', 'Saldo caixa', money(d.totais.saldo_caixa))}
     </div>
-    <div class="alert alert-light border small mb-4">
+    <div class="alert alert-light border small">
       <span class="material-symbols-outlined" style="font-size:1rem">info</span>
       Os custos de receitas e precificações são recalculados automaticamente sempre que um insumo tem o valor alterado.
     </div>
-    <h6 class="text-uppercase fw-bold text-muted small mb-3">Últimos itens adicionados</h6>
-    <div class="row">
+    <h6 class="text-uppercase fw-bold text-muted small">Últimos itens adicionados</h6>
+    <div class="row g-3">
       ${recentCard('Clientes', 'people', '#4a7cc7', r.clientes, 'clientes', d.totais.clientes)}
       ${recentCard('Campanhas', 'campaign', '#e67e22', r.campanhas, 'campanhas', d.totais.campanhas)}
       ${recentCard('Insumos', 'inventory_2', '#16a085', r.insumos, 'insumos', d.totais.insumos)}
@@ -226,7 +226,7 @@ async function clientes() {
   $('#content').innerHTML = `
     <div class="card-crud">
       <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <input class="form-control form-control-sm w-25" id="filtro" placeholder="Buscar...">
+        <input class="form-control form-control-sm search-control" id="filtro" placeholder="Buscar...">
         <button class="btn btn-primary btn-sm" onclick="App.novoCliente()"><span class="material-symbols-outlined">add</span> Novo Cliente</button>
       </div>
       <div class="table-responsive">
@@ -305,7 +305,7 @@ function htmlFormCliente(c) {
   const desabilitarWhatsapp = c ? Number(c.desabilitar_whatsapp) === 1 : false;
   return `
   <div class="modal fade" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">${id ? 'Editar Cliente' : 'Novo Cliente'}</h5>
@@ -356,10 +356,10 @@ function htmlFormCliente(c) {
 async function campanhas() {
   const dados = await api('/api/campanhas');
   $('#content').innerHTML = `
-    <div class="row g-3 mb-3">
+    <div class="row g-3">
       <div class="col-md-8">
         <div class="card-crud card h-100">
-          <div class="card-header d-flex justify-content-between align-items-center gap-2">
+          <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
             <span class="text-muted small">${dados.length} campanha(s) cadastrada(s)</span>
             <button class="btn btn-primary btn-sm" onclick="App.novaCampanha()"><span class="material-symbols-outlined">add</span> Nova Campanha</button>
           </div>
@@ -381,7 +381,7 @@ async function campanhas() {
         <div id="envioStatus"></div>
       </div>
     </div>
-    <div class="alert alert-light border small mb-0" style="background:#fafafa">
+    <div class="alert alert-light border small" style="background:#fafafa">
       <span class="material-symbols-outlined" style="font-size:1rem">info</span>
       O arquivo anexado é salvo como <code>AAAA-MM-DD-Campanha-nome-da-campanha.ext</code>.
       Ao enviar por WhatsApp, a imagem/PDF + a descrição são enviados aos clientes com WhatsApp = Sim e campanhas habilitadas, em fila com intervalos e pausas automáticas.
@@ -474,7 +474,7 @@ function htmlFormCampanha(c) {
   const temArquivo = c && c.arquivo;
   return `
   <div class="modal fade" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">${id ? 'Editar Campanha' : 'Nova Campanha'}</h5>
@@ -545,7 +545,7 @@ async function renderWaStatus() {
 async function abrirQrWhats() {
   openModal(`
     <div class="modal fade" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">Conectar WhatsApp Web</h5>
@@ -640,7 +640,7 @@ async function medidas() {
   const dados = await api('/api/medidas');
   $('#content').innerHTML = `
     <div class="card-crud">
-      <div class="card-header d-flex justify-content-between align-items-center gap-2">
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <span class="text-muted small">${dados.length} unidade(s) de medida</span>
         <button class="btn btn-primary btn-sm" onclick="App.novaMedida()"><span class="material-symbols-outlined">add</span> Nova Medida</button>
       </div>
@@ -700,7 +700,7 @@ function htmlFormMedida(m) {
   const inteiro = m ? !!m.inteiro : false;
   return `
   <div class="modal fade" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">${id ? 'Editar Medida' : 'Nova Medida'}</h5>
@@ -738,7 +738,7 @@ async function insumos() {
   $('#content').innerHTML = `
     <div class="card-crud">
       <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <input class="form-control form-control-sm w-25" id="filtro" placeholder="Buscar...">
+        <input class="form-control form-control-sm search-control" id="filtro" placeholder="Buscar...">
         <button class="btn btn-primary btn-sm" onclick="App.novoInsumo()"><span class="material-symbols-outlined">add</span> Novo Insumo</button>
       </div>
       <div class="table-responsive">
@@ -748,7 +748,7 @@ async function insumos() {
         </table>
       </div>
     </div>
-    <div class="alert alert-light border small mt-3 mb-0" style="background:#fafafa">
+    <div class="alert alert-light border small" style="background:#fafafa">
       <span class="material-symbols-outlined" style="font-size:1rem">auto_awesome</span>
       <strong>Recálculo automático:</strong> ao alterar o valor de um insumo, o custo das receitas e precificações que o utilizam é recalculado automaticamente.
     </div>`;
@@ -811,7 +811,7 @@ async function abrirFormInsumo(i) {
   const v = f => i ? esc(i[f] ?? '') : '';
   openModal(`
   <div class="modal fade" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">${id ? 'Editar Insumo' : 'Novo Insumo'}</h5>
@@ -861,7 +861,7 @@ async function receitas() {
         </table>
       </div>
     </div>
-    <div class="alert alert-light border small mt-3 mb-0" style="background:#fafafa">
+    <div class="alert alert-light border small" style="background:#fafafa">
       <span class="material-symbols-outlined" style="font-size:1rem">info</span>
       Os custos não são gravados: são exibidos sempre com base no valor atual dos insumos.
     </div>`;
@@ -884,7 +884,7 @@ async function receitas() {
     const r = await api(`/api/receitas/${id}`);
     openModal(`
       <div class="modal fade" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">${esc(r.nome)}</h5>
@@ -946,7 +946,7 @@ async function abrirFormReceita(r) {
   const baseItens = r ? r.itens : [];
   openModal(`
   <div class="modal fade" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">${id ? 'Editar Receita' : 'Nova Receita'}</h5>
@@ -977,7 +977,7 @@ async function abrirFormReceita(r) {
 
   const container = $('#itensReceita');
   const htmlItem = (it = {}) => `
-    <div class="row g-2 mb-2 item-row align-items-center">
+    <div class="row g-2 item-row align-items-center">
       <div class="col-7 col-md-8">
         <select name="insumo_id" class="form-select form-select-sm"
           onchange="sincInteiro(this, this.closest('.item-row').querySelector('[name=quantidade]'))">
@@ -1022,7 +1022,7 @@ async function precificacao() {
         </table>
       </div>
     </div>
-    <div class="alert alert-light border small mt-3 mb-0" style="background:#fafafa">
+    <div class="alert alert-light border small" style="background:#fafafa">
       <span class="material-symbols-outlined" style="font-size:1rem">info</span>
       O valor é calculado no momento da exibição, a partir do custo atual dos insumos (regra de negócio).
     </div>`;
@@ -1045,7 +1045,7 @@ async function precificacao() {
     const p = await api(`/api/precificacao/${id}`);
     openModal(`
       <div class="modal fade" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">${esc(p.nome)}</h5>
@@ -1120,7 +1120,7 @@ async function abrirFormPrecificacao(p) {
   const baseItens = p ? p.itens : [];
   openModal(`
   <div class="modal fade" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">${id ? 'Editar Precificação' : 'Nova Precificação'}</h5>
@@ -1155,7 +1155,7 @@ async function abrirFormPrecificacao(p) {
   const htmlItem = (it = {}) => {
     const tipo = it.tipo || 'insumo';
     return `
-      <div class="row g-2 mb-2 item-row">
+      <div class="row g-2 item-row">
         <div class="col-md-2">
           <select name="tipo" class="form-select form-select-sm" onchange="App.tipoItemPrec(this)">
             <option value="insumo" ${tipo === 'insumo' ? 'selected' : ''}>Insumo</option>
@@ -1212,25 +1212,23 @@ async function caixa(inicio = '', fim = '') {
   const qs = new URLSearchParams({ inicio, fim });
   const d = await api('/api/caixa?' + qs.toString());
   $('#content').innerHTML = `
-    ${['Entradas', 'Saídas', 'Saldo'].map((t, idx) => `
-      <div class="col">...`).join('')}
-    <div class="row mb-3">
-      <div class="col-6 col-md-4 col-xl-3 mb-3"><div class="stat-card d-flex align-items-center gap-3">
+    <div class="row g-3">
+      <div class="col-12 col-sm-6 col-md-4 col-xl-3"><div class="stat-card d-flex align-items-center gap-3">
         <div class="icon" style="background:#27ae60"><span class="material-symbols-outlined">south_west</span></div>
         <div><div class="valor">${money(d.totais.total_entradas)}</div><div class="text-muted small">Entradas</div></div>
       </div></div>
-      <div class="col-6 col-md-4 col-xl-3 mb-3"><div class="stat-card d-flex align-items-center gap-3">
+      <div class="col-12 col-sm-6 col-md-4 col-xl-3"><div class="stat-card d-flex align-items-center gap-3">
         <div class="icon" style="background:#e74c3c"><span class="material-symbols-outlined">north_east</span></div>
         <div><div class="valor">${money(d.totais.total_saidas)}</div><div class="text-muted small">Saídas</div></div>
       </div></div>
-      <div class="col-6 col-md-4 col-xl-3 mb-3"><div class="stat-card d-flex align-items-center gap-3">
+      <div class="col-12 col-sm-6 col-md-4 col-xl-3"><div class="stat-card d-flex align-items-center gap-3">
         <div class="icon" style="background:#2c3e50"><span class="material-symbols-outlined">account_balance</span></div>
         <div><div class="valor">${money(d.totais.saldo)}</div><div class="text-muted small">Saldo</div></div>
       </div></div>
     </div>
     <div class="card-crud">
-      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <div class="d-flex align-items-center gap-2 flex-wrap">
+      <div class="card-header cash-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="filter-period">
           <input type="date" id="fInicio" class="form-control form-control-sm" value="${inicio}">
           <span class="text-muted small">até</span>
           <input type="date" id="fFim" class="form-control form-control-sm" value="${fim}">
@@ -1292,7 +1290,7 @@ function htmlFormLancamento(l) {
   const v = f => l ? esc(l[f] ?? '') : '';
   return `
   <div class="modal fade" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">${id ? 'Editar Lançamento' : 'Novo Lançamento'}</h5>
@@ -1327,7 +1325,7 @@ function htmlFormLancamento(l) {
    ============================================================ */
 async function relatorios() {
   $('#content').innerHTML = `
-    <div class="card-crud mb-3">
+    <div class="card-crud">
       <div class="card-header"><strong>Relatórios em PDF</strong>
         <small class="text-muted d-block">Todos os relatórios são gerados e disponibilizados para download no formato PDF.</small>
       </div>
@@ -1361,7 +1359,7 @@ function cardRel(titulo, icon, desc, url, temPeriodo = false) {
         <h6><span class="material-symbols-outlined" style="color:#8e44ad">${icon}</span> ${titulo}</h6>
         <p class="text-muted small flex-grow-1">${desc}</p>
         ${temPeriodo ? `
-          <div class="d-flex gap-2 mb-2">
+          <div class="report-period">
             <input type="date" id="relInicio" class="form-control form-control-sm">
             <input type="date" id="relFim" class="form-control form-control-sm">
           </div>` : ''}
