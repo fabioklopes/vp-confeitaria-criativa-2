@@ -1211,20 +1211,23 @@ async function abrirFormPrecificacao(p) {
 async function caixa(inicio = '', fim = '') {
   const qs = new URLSearchParams({ inicio, fim });
   const d = await api('/api/caixa?' + qs.toString());
+  const totais = d?.totais || {};
+  const lancamentos = Array.isArray(d?.lancamentos) ? d.lancamentos : [];
+  const stat = (icon, cor, label, valor) => `
+    <div class="col-12 col-sm-6 col-md-4 col-xl-3">
+      <div class="stat-card d-flex align-items-center gap-3">
+        <div class="icon" style="background:${cor}"><span class="material-symbols-outlined">${icon}</span></div>
+        <div class="lh-1">
+          <div class="valor">${valor}</div>
+          <div class="text-muted small">${label}</div>
+        </div>
+      </div>
+    </div>`;
   $('#content').innerHTML = `
     <div class="row g-3">
-      <div class="col-12 col-sm-6 col-md-4 col-xl-3"><div class="stat-card d-flex align-items-center gap-3">
-        <div class="icon" style="background:#27ae60"><span class="material-symbols-outlined">south_west</span></div>
-        <div><div class="valor">${money(d.totais.total_entradas)}</div><div class="text-muted small">Entradas</div></div>
-      </div></div>
-      <div class="col-12 col-sm-6 col-md-4 col-xl-3"><div class="stat-card d-flex align-items-center gap-3">
-        <div class="icon" style="background:#e74c3c"><span class="material-symbols-outlined">north_east</span></div>
-        <div><div class="valor">${money(d.totais.total_saidas)}</div><div class="text-muted small">Saídas</div></div>
-      </div></div>
-      <div class="col-12 col-sm-6 col-md-4 col-xl-3"><div class="stat-card d-flex align-items-center gap-3">
-        <div class="icon" style="background:#2c3e50"><span class="material-symbols-outlined">account_balance</span></div>
-        <div><div class="valor">${money(d.totais.saldo)}</div><div class="text-muted small">Saldo</div></div>
-      </div></div>
+      ${stat('south_west', '#27ae60', 'Entradas', money(totais.total_entradas))}
+      ${stat('north_east', '#e74c3c', 'Saídas', money(totais.total_saidas))}
+      ${stat('account_balance', '#2c3e50', 'Saldo', money(totais.saldo))}
     </div>
     <div class="card-crud">
       <div class="card-header cash-header d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -1245,7 +1248,7 @@ async function caixa(inicio = '', fim = '') {
     </div>`;
 
   const tbody = $('#tbody');
-  tbody.innerHTML = d.lancamentos.length ? d.lancamentos.map(l => `
+  tbody.innerHTML = lancamentos.length ? lancamentos.map(l => `
     <tr>
       <td>${dataBR(l.data_lancamento)}</td>
       <td><span class="badge ${l.tipo === 'entrada' ? 'text-bg-success' : 'text-bg-danger'}">${l.tipo === 'entrada' ? 'Entrada' : 'Saída'}</span></td>
