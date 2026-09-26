@@ -1,9 +1,12 @@
 const express = require('express');
 const db = require('../db');
+const auth = require('../lib/auth');
 const config = require('../config');
 const PDFDocument = require('pdfkit');
 
 const router = express.Router();
+
+router.use(auth.exigirLogin, auth.exigirPermissao('relatorios.ver'));
 
 function money(v) {
   return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

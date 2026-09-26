@@ -19,37 +19,55 @@
         </div>
       </div>
       <nav class="sidebar-nav">
-        <a href="#/dashboard" class="nav-link" data-rota="dashboard">
+        <a href="#/dashboard" class="nav-link" data-rota="dashboard" data-perm="dashboard.ver">
           <span class="material-symbols-outlined">space_dashboard</span> Dashboard
         </a>
         <div class="nav-separator">Cadastros</div>
-        <a href="#/clientes" class="nav-link" data-rota="clientes">
+        <a href="#/clientes" class="nav-link" data-rota="clientes" data-perm="clientes.ver">
           <span class="material-symbols-outlined">people</span> Clientes
         </a>
-        <a href="#/campanhas" class="nav-link" data-rota="campanhas">
+        <a href="#/campanhas" class="nav-link" data-rota="campanhas" data-perm="campanhas.ver">
           <span class="material-symbols-outlined">campaign</span> Campanhas
         </a>
-        <a href="#/medidas" class="nav-link" data-rota="medidas">
+        <a href="#/medidas" class="nav-link" data-rota="medidas" data-perm="medidas.ver">
           <span class="material-symbols-outlined">straighten</span> Medidas
         </a>
-        <a href="#/insumos" class="nav-link" data-rota="insumos">
+        <a href="#/insumos" class="nav-link" data-rota="insumos" data-perm="insumos.ver">
           <span class="material-symbols-outlined">inventory_2</span> Insumos
         </a>
         <div class="nav-separator">Produção e Preço</div>
-        <a href="#/receitas" class="nav-link" data-rota="receitas">
+        <a href="#/receitas" class="nav-link" data-rota="receitas" data-perm="receitas.ver">
           <span class="material-symbols-outlined">menu_book</span> Receitas Prontas
         </a>
-        <a href="#/precificacao" class="nav-link" data-rota="precificacao">
+        <a href="#/precificacao" class="nav-link" data-rota="precificacao" data-perm="precificacao.ver">
           <span class="material-symbols-outlined">sell</span> Precificação
         </a>
         <div class="nav-separator">Financeiro</div>
-        <a href="#/caixa" class="nav-link" data-rota="caixa">
+        <a href="#/caixa" class="nav-link" data-rota="caixa" data-perm="caixa.ver">
           <span class="material-symbols-outlined">account_balance_wallet</span> Fluxo de Caixa
         </a>
-        <a href="#/relatorios" class="nav-link" data-rota="relatorios">
+        <a href="#/relatorios" class="nav-link" data-rota="relatorios" data-perm="relatorios.ver">
           <span class="material-symbols-outlined">summarize</span> Relatórios
         </a>
+        <div class="nav-separator" data-seg="seguranca">Segurança</div>
+        <a href="#/usuarios" class="nav-link" data-rota="usuarios" data-perm="usuarios.ver">
+          <span class="material-symbols-outlined">group</span> Usuários
+        </a>
+        <a href="#/grupos" class="nav-link" data-rota="grupos" data-perm="grupos.ver">
+          <span class="material-symbols-outlined">workspaces</span> Grupos
+        </a>
+        <a href="#/perfis" class="nav-link" data-rota="perfis" data-perm="perfis.ver">
+          <span class="material-symbols-outlined">badge</span> Perfis de Acesso
+        </a>
+        <a href="#/auditoria" class="nav-link" data-rota="auditoria" data-perm="auditoria.ver">
+          <span class="material-symbols-outlined">history</span> Auditoria
+        </a>
       </nav>
+      <div class="sidebar-foot">
+        <button class="btn btn-sm btn-outline-light w-100" type="button" onclick="App.irParaMeuPerfil()">
+          <span class="material-symbols-outlined">manage_accounts</span> Meu Perfil
+        </button>
+      </div>
     </aside>
 
     <main class="main">
@@ -58,7 +76,30 @@
           <span class="material-symbols-outlined">menu</span>
         </button>
         <h1 id="pageTitle" class="h4 mb-0">Dashboard</h1>
-        <span id="clock" class="ms-auto text-muted small"></span>
+        <span id="clock" class="ms-auto text-muted small d-none d-md-inline"></span>
+        <div class="topbar-usuario" id="topbarUsuario">
+          <button class="btn btn-light d-flex align-items-center gap-2 border-0 p-0" type="button"
+            data-bs-toggle="dropdown" aria-expanded="false" id="btnUsuario">
+            <span class="avatar avatar-sm" id="topbarAvatar"></span>
+          </button>
+          <div class="dropdown-menu dropdown-menu-end shadow" id="menuUsuario">
+            <div class="px-3 py-2 border-bottom">
+              <strong class="d-block" id="menuNome">-</strong>
+              <small class="text-muted" id="menuLogin">-</small>
+              <div class="mt-1" id="menuGrupos"></div>
+            </div>
+            <a class="dropdown-item" href="#/meu-perfil">
+              <span class="material-symbols-outlined me-2" style="font-size:1.1rem">account_circle</span> Meu Perfil
+            </a>
+            <a class="dropdown-item" href="#/sessoes">
+              <span class="material-symbols-outlined me-2" style="font-size:1.1rem">devices</span> Minhas Sessões
+            </a>
+            <hr class="dropdown-divider">
+            <button class="dropdown-item text-danger" type="button" onclick="App.sair()">
+              <span class="material-symbols-outlined me-2" style="font-size:1.1rem">logout</span> Sair do Sistema
+            </button>
+          </div>
+        </div>
       </header>
       <section id="content" class="content"></section>
     </main>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recuperar senha - Confeitaria ERP</title>
+  <link href="/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+  <link href="/vendor/material-symbols/material-symbols-outlined.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+</head>
+<body class="auth-body">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <span class="material-symbols-outlined">cake</span>
+        <div>
+          <strong>Confeitaria</strong>
+          <small>ERP de Gestão</small>
+        </div>
+      </div>
+
+      <a href="/login.html" class="auth-back">
+        <span class="material-symbols-outlined" style="font-size:1.1rem">arrow_back</span> Voltar para o login
+      </a>
+
+      <!-- 1) solicitar o link -->
+      <section id="etapaSolicitar">
+        <h1 class="auth-title">Recuperar senha</h1>
+        <p class="auth-sub">
+          Informe o e-mail cadastrado no sistema. Enviaremos um link para você cadastrar uma nova senha.
+        </p>
+        <form id="formSolicitar" novalidate>
+          <div class="mb-3">
+            <label class="form-label" for="email">E-mail</label>
+            <div class="input-group">
+              <span class="input-group-text"><span class="material-symbols-outlined">mail</span></span>
+              <input id="email" name="email" type="email" class="form-control" autocomplete="email"
+                autocapitalize="none" spellcheck="false" required autofocus>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary w-100" id="btnSolicitar">
+            <span class="material-symbols-outlined me-1">send</span> Enviar link de recuperação
+          </button>
+        </form>
+      </section>
+
+      <!-- 2) cadastrar a nova senha -->
+      <section id="etapaNovaSenha" class="d-none">
+        <h1 class="auth-title">Cadastrar nova senha</h1>
+        <p class="auth-sub" id="destinatario"></p>
+        <form id="formNovaSenha" novalidate>
+          <div class="mb-3">
+            <label class="form-label" for="novaSenha">Nova senha</label>
+            <div class="input-group">
+              <span class="input-group-text"><span class="material-symbols-outlined">lock</span></span>
+              <input id="novaSenha" name="novaSenha" type="password" class="form-control"
+                autocomplete="new-password" required>
+              <button class="btn btn-outline-secondary" type="button" id="btnVer1" tabindex="-1">
+                <span class="material-symbols-outlined">visibility</span>
+              </button>
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label" for="confirmaSenha">Repetir a senha</label>
+            <div class="input-group">
+              <span class="input-group-text"><span class="material-symbols-outlined">lock_reset</span></span>
+              <input id="confirmaSenha" name="confirmaSenha" type="password" class="form-control"
+                autocomplete="new-password" required>
+            </div>
+          </div>
+          <div id="forcaSenha" class="mb-3"></div>
+          <button type="submit" class="btn btn-primary w-100" id="btnSalvar">
+            <span class="material-symbols-outlined me-1">key</span> Salvar nova senha
+          </button>
+        </form>
+      </section>
+
+      <!-- 3) senha trocada -->
+      <section id="etapaConcluido" class="d-none text-center">
+        <span class="material-symbols-outlined auth-ok">check_circle</span>
+        <h1 class="auth-title">Senha alterada</h1>
+        <p class="auth-sub">Sua senha foi redefinida e as sessões abertas foram encerradas.</p>
+        <a href="/login.html" class="btn btn-primary w-100">Entrar no sistema</a>
+      </section>
+    </div>
+  </div>
+
+  <script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="/js/recuperar-senha.js"></script>
+</body>
+</html>

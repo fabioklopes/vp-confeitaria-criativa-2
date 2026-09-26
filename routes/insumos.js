@@ -1,7 +1,11 @@
 const express = require('express');
 const db = require('../db');
+const auth = require('../lib/auth');
 
 const router = express.Router();
+
+router.use(auth.exigirLogin, auth.exigirPermissao('insumos.ver'));
+const EXIGIR_EDITAR = auth.exigirPermissao('insumos.editar');
 
 function validar(body, medida) {
   if (!body.produto) return 'Informe o produto.';
@@ -45,7 +49,7 @@ router.get('/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', EXIGIR_EDITAR, async (req, res, next) => {
   try {
     const medidas = await medidasInteiras();
     const erro = validar(req.body, medidas.get(req.body.medida_id || ''));
@@ -59,7 +63,7 @@ router.post('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', EXIGIR_EDITAR, async (req, res, next) => {
   try {
     const medidas = await medidasInteiras();
     const erro = validar(req.body, medidas.get(req.body.medida_id || ''));
@@ -74,7 +78,7 @@ router.put('/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', EXIGIR_EDITAR, async (req, res, next) => {
   try {
     const r = await db.query('DELETE FROM tb_insumos WHERE id = ?', [req.params.id]);
     if (!r.affectedRows) return res.status(404).json({ erro: 'Insumo não encontrado.' });

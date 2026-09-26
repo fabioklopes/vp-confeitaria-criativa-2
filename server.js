@@ -1,50 +1,12 @@
 const express = require('express');
 const path = require('path');
-const crypto = require('crypto');
 const cors = require('cors');
 const config = require('./config');
 const wa = require('./lib/whatsapp');
+const auth = require('./lib/auth');
+const garantirSchema = require('./lib/garantir-schema');
 
 const app = express();
-
-function safeEqual(left, right) {
-  const a = Buffer.from(String(left));
-  const b = Buffer.from(String(right));
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
-}
-
-function unauthorized(res) {
-  res.set('WWW-Authenticate', 'Basic realm="Confeitaria ERP", charset="UTF-8"');
-  return res.status(401).json({ erro: 'Autenticação necessária.' });
-}
-
-function authenticate(req, res, next) {
-  if (!config.app.auth.enabled) return next();
-
-  const origin = req.get('origin');
-  if (origin && !config.app.corsOrigins.includes(origin)) {
-    return res.status(403).json({ erro: 'Origem não permitida.' });
-  }
-
-  const header = req.get('authorization') || '';
-  if (!header.startsWith('Basic ')) return unauthorized(res);
-
-  let decoded;
-  try {
-    decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
-  } catch (error) {
-    return unauthorized(res);
-  }
-  const separator = decoded.indexOf(':');
-  if (separator < 0) return unauthorized(res);
-
-  const user = decoded.slice(0, separator);
-  const password = decoded.slice(separator + 1);
-  if (!safeEqual(user, config.app.auth.user) || !safeEqual(password, config.app.auth.password)) {
-    return unauthorized(res);
-  }
-  return next();
-}
 
 app.disable('x-powered-by');
 app.use((req, res, next) => {
@@ -61,7 +23,8 @@ app.use(cors({
       return callback(null, true);
     }
     return callback(null, false);
-  }
+  },
+  credentials: true
 }));
 app.use('/api', (req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -71,12 +34,25 @@ app.use('/uploads', (req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   next();
 });
-app.use(authenticate);
+
 app.use(express.json());
+
+// resolve a sessão enviada no cookie em todas as requisições
+app.use(auth.carregarSessao);
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(config.uploadDir));
 
+// autenticação (login, logout, recuperação de senha, perfil próprio)
+app.use('/api/auth', require('./routes/auth'));
+
+// administração de acessos
+app.use('/api/usuarios', require('./routes/usuarios'));
+app.use('/api/grupos', require('./routes/grupos'));
+app.use('/api/perfis', require('./routes/perfis'));
+app.use('/api/auditoria', require('./routes/auditoria'));
+
+// módulos do ERP
 app.use('/api/clientes', require('./routes/clientes'));
 app.use('/api/campanhas', require('./routes/capanhas'));
 app.use('/api/medidas', require('./routes/medidas'));
@@ -103,10 +79,21 @@ app.use((err, req, res, next) => {
   return res.status(status).json({ erro: err.message || 'Erro interno do servidor.' });
 });
 
-app.listen(config.app.port, config.app.host, () => {
-  console.log(`[${config.app.nomeSistema}] no ar em http://${config.app.host}:${config.app.port}`);
-  wa.init();
-  if (config.whatsapp.enabled) {
-    console.log('[whatsapp] inicializando sessão (LocalAuth)...');
+async function iniciar() {
+  try {
+    await garantirSchema.iniciar();
+  } catch (e) {
+    console.error('[auth] falha ao preparar o banco de dados:', e.code || e.message);
+    process.exit(1);
   }
-});
+
+  app.listen(config.app.port, config.app.host, () => {
+    console.log(`[${config.app.nomeSistema}] no ar em http://${config.app.host}:${config.app.port}`);
+    wa.init();
+    if (config.whatsapp.enabled) {
+      console.log('[whatsapp] inicializando sessão (LocalAuth)...');
+    }
+  });
+}
+
+iniciar();

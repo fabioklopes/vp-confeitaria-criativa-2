@@ -1,7 +1,10 @@
 const express = require('express');
 const wa = require('../lib/whatsapp');
+const auth = require('../lib/auth');
 
 const router = express.Router();
+
+router.use(auth.exigirLogin, auth.exigirPermissao('whatsapp.ver'));
 
 router.get('/status', async (req, res, next) => {
   try {

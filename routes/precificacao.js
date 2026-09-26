@@ -1,7 +1,11 @@
 const express = require('express');
 const db = require('../db');
+const auth = require('../lib/auth');
 
 const router = express.Router();
+
+router.use(auth.exigirLogin, auth.exigirPermissao('precificacao.ver'));
+const EXIGIR_EDITAR = auth.exigirPermissao('precificacao.editar');
 
 function validar(body) {
   if (!body.nome) return 'Informe o nome do produto/precificação.';
@@ -99,7 +103,7 @@ async function salvarItens(id, itens) {
   }
 }
 
-router.post('/', async (req, res, next) => {
+router.post('/', EXIGIR_EDITAR, async (req, res, next) => {
   try {
     const erro = validar(req.body);
     if (erro) return res.status(400).json({ erro });
@@ -111,7 +115,7 @@ router.post('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', EXIGIR_EDITAR, async (req, res, next) => {
   try {
     const erro = validar(req.body);
     if (erro) return res.status(400).json({ erro });
@@ -124,7 +128,7 @@ router.put('/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', EXIGIR_EDITAR, async (req, res, next) => {
   try {
     const r = await db.query('DELETE FROM tb_precificacao WHERE id = ?', [req.params.id]);
     if (!r.affectedRows) return res.status(404).json({ erro: 'Precificação não encontrada.' });

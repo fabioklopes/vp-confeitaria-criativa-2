@@ -19,6 +19,15 @@ function esc(s) {
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Erro de API com o status HTTP preservado (o router usa 401 para voltar ao login)
+function erroApi(data, status) {
+  const e = new Error(data.erro || 'Erro na requisição.');
+  e.status = status;
+  e.motivo = data.motivo || null;
+  e.restantes = data.restantes;
+  return e;
+}
+
 async function api(url, { method = 'GET', body } = {}) {
   const resp = await fetch(url, {
     method,
@@ -26,7 +35,7 @@ async function api(url, { method = 'GET', body } = {}) {
     body: body ? JSON.stringify(body) : undefined
   });
   const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new Error(data.erro || 'Erro na requisição.');
+  if (!resp.ok) throw erroApi(data, resp.status);
   return data;
 }
 
@@ -34,7 +43,7 @@ async function api(url, { method = 'GET', body } = {}) {
 async function apiForm(url, form, method = 'POST') {
   const resp = await fetch(url, { method, body: form });
   const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new Error(data.erro || 'Erro na requisição.');
+  if (!resp.ok) throw erroApi(data, resp.status);
   return data;
 }
 
@@ -115,6 +124,69 @@ function sincInteiro(sel, qIn) {
   }
 }
 
+/* objeto global das ações chamado pelos botões (onclick) */
+window.App = window.App || {};
+
+/* ============================================================
+   SESSÃO E PERMISSÕES
+   ============================================================ */
+let SESSAO = null;
+
+const iniciais = nome => String(nome || '?')
+  .trim().split(/\s+/).slice(0, 2)
+  .map(p => p[0]).join('').toUpperCase();
+
+// Avatar: usa a foto cadastrada ou as iniciais do nome
+function avatarHtml(usuario, tamanho = 'avatar-sm') {
+  if (usuario && usuario.foto_url) {
+    return `<span class="avatar ${tamanho}"><img src="${esc(usuario.foto_url)}" alt=""></span>`;
+  }
+  return `<span class="avatar ${tamanho}">${esc(iniciais(usuario && usuario.nome))}</span>`;
+}
+
+function temPermissao(chave) {
+  if (!SESSAO) return false;
+  if (SESSAO.acesso_total) return true;
+  return Array.isArray(SESSAO.permissoes) && SESSAO.permissoes.includes(chave);
+}
+
+// esconde do menu as telas sem permissão
+function aplicarPermissoesNoMenu() {
+  const visiveis = new Set();
+  $$('.sidebar-nav .nav-link[data-perm]').forEach(a => {
+    const ok = temPermissao(a.dataset.perm);
+    a.classList.toggle('d-none', !ok);
+    if (ok) visiveis.add(a.dataset.perm.split('.')[0]);
+  });
+  const sepSeguranca = $('.nav-separator[data-seg="seguranca"]');
+  if (sepSeguranca) {
+    const algum = ['usuarios', 'grupos', 'perfis', 'auditoria'].some(m => visiveis.has(m));
+    sepSeguranca.classList.toggle('d-none', !algum);
+  }
+  // esconde botões de cadastro quando o usuário só pode visualizar
+  $$('#content [data-perm-acao]').forEach(b => {
+    b.classList.toggle('d-none', !temPermissao(b.dataset.permAcao));
+  });
+}
+
+function pinturaTopbar() {
+  const u = SESSAO;
+  if (!u) return;
+  const alvo = $('#topbarAvatar');
+  if (alvo) alvo.outerHTML = avatarHtml(u, 'avatar-sm').replace('<span class="avatar', '<span id="topbarAvatar" class="avatar');
+  $('#btnUsuario').title = `${u.nome} (${u.usuario})`;
+  $('#menuNome').textContent = u.nome;
+  $('#menuLogin').textContent = u.usuario + (u.cargo ? ` · ${u.cargo}` : '');
+  $('#menuGrupos').innerHTML = u.grupos.length
+    ? u.grupos.map(g => `<span class="badge text-bg-light me-1">${esc(g.nome)}</span>`).join('') +
+      (u.acesso_total ? '<span class="badge text-bg-primary">acesso total</span>' : '')
+    : '<span class="badge text-bg-light">sem grupo</span>';
+}
+
+function irParaLogin(motivo) {
+  location.replace(motivo ? `/login.html?${motivo}` : '/login.html');
+}
+
 /* ============================================================
    ROUTER
    ============================================================ */
@@ -127,27 +199,102 @@ const TITULOS = {
   receitas: 'Receitas Prontas',
   precificacao: 'Precificação',
   caixa: 'Fluxo de Caixa',
-  relatorios: 'Relatórios'
+  relatorios: 'Relatórios',
+  usuarios: 'Usuários',
+  grupos: 'Grupos de Usuários',
+  perfis: 'Perfis de Acesso',
+  auditoria: 'Auditoria',
+  'meu-perfil': 'Meu Perfil',
+  sessoes: 'Minhas Sessões'
 };
 
-const rotas = { dashboard, clientes, campanhas, medidas, insumos, receitas, precificacao, caixa, relatorios };
+// tela -> permissão exigida (ausente = qualquer usuário autenticado)
+const PERMISSAO_ROTA = {
+  dashboard: 'dashboard.ver',
+  clientes: 'clientes.ver',
+  campanhas: 'campanhas.ver',
+  medidas: 'medidas.ver',
+  insumos: 'insumos.ver',
+  receitas: 'receitas.ver',
+  precificacao: 'precificacao.ver',
+  caixa: 'caixa.ver',
+  relatorios: 'relatorios.ver',
+  usuarios: 'usuarios.ver',
+  grupos: 'grupos.ver',
+  perfis: 'perfis.ver',
+  auditoria: 'auditoria.ver'
+};
+
+const rotas = {
+  dashboard, clientes, campanhas, medidas, insumos, receitas, precificacao, caixa, relatorios,
+  usuarios, grupos, perfis, auditoria,
+  'meu-perfil': meuPerfil, sessoes: minhasSessoes
+};
+
+// primeira tela do menu à qual o usuário tem acesso
+function primeiraRotaPermitida() {
+  const link = $$('.sidebar-nav .nav-link').find(a => !a.classList.contains('d-none'));
+  return link ? link.dataset.rota : null;
+}
 
 async function rotear() {
   const nome = (location.hash.replace(/^#\//, '').split('?')[0]) || 'dashboard';
-  const fn = rotas[nome] || rotas.dashboard;
+  const fn = rotas[nome];
+
+  if (!fn) {
+    location.hash = '#/dashboard';
+    return;
+  }
+  if (PERMISSAO_ROTA[nome] && !temPermissao(PERMISSAO_ROTA[nome])) {
+    // tela inicial sem permissão: abre a primeira tela liberada do menu
+    const alternativa = primeiraRotaPermitida();
+    if (nome === 'dashboard' && alternativa && alternativa !== nome && rotas[alternativa] &&
+        (!PERMISSAO_ROTA[alternativa] || temPermissao(PERMISSAO_ROTA[alternativa]))) {
+      location.hash = `#/${alternativa}`;
+      return;
+    }
+    // tela digitada na URL: informa o bloqueio em vez de redirecionar
+    $('#pageTitle').textContent = 'Acesso negado';
+    $('#content').innerHTML = `
+      <div class="card-crud">
+        <div class="card-body text-center py-5">
+          <span class="material-symbols-outlined" style="font-size:3rem;color:#dc3545">lock</span>
+          <h5 class="mt-3">Você não tem permissão para acessar esta tela</h5>
+          <p class="text-muted small mb-3">Peça a um administrador para liberar o acesso em Perfis de Acesso.</p>
+          ${alternativa
+            ? `<a href="#/${alternativa}" class="btn btn-outline-primary btn-sm">Ir para ${esc(TITULOS[alternativa])}</a>`
+            : '<p class="text-muted small mb-0">Nenhuma tela liberada para este usuário. Fale com o administrador.</p>'}
+        </div>
+      </div>`;
+    return;
+  }
+
   $$('.sidebar-nav .nav-link').forEach(a => a.classList.toggle('active', a.dataset.rota === nome));
   $('#pageTitle').textContent = TITULOS[nome] || 'Dashboard';
   const sec = $('#content');
   sec.innerHTML = '<div class="d-flex justify-content-center py-5"><div class="spinner-border text-primary-sys" role="status"></div></div>';
   try {
     await fn();
+    aplicarPermissoesNoMenu();
   } catch (e) {
+    if (e.status === 401) return irParaLogin(e.motivo === 'bloqueado' ? 'bloqueado' : 'expirada');
     sec.innerHTML = `<div class="alert alert-danger">${esc(e.message)}</div>`;
   }
 }
 
 window.addEventListener('hashchange', rotear);
-document.addEventListener('DOMContentLoaded', () => {
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const r = await api('/api/auth/me');
+    SESSAO = r.usuario;
+  } catch (e) {
+    if (e.status === 401) return irParaLogin(e.motivo === 'bloqueado' ? 'bloqueado' : '');
+    return;
+  }
+
+  aplicarPermissoesNoMenu();
+  pinturaTopbar();
   $('#btnSidebar')?.addEventListener('click', () => $('#sidebar').classList.toggle('open'));
   $$('.sidebar-nav .nav-link').forEach(a => a.addEventListener('click', () => $('#sidebar').classList.remove('open')));
   const relogio = $('#clock');
@@ -156,8 +303,69 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   setInterval(tick, 1000);
   tick();
-  rotear();
+  await rotear();
+  if (SESSAO.deve_alterar_senha) window.App.exigirTrocaSenha();
 });
+
+/* ============================================================
+   SESSÃO: sair e troca obrigatória de senha
+   ============================================================ */
+window.App.sair = async () => {
+  try { await api('/api/auth/sair', { method: 'POST' }); } catch (e) { /* encerra assim mesmo */ }
+  location.replace('/login.html');
+};
+
+window.App.irParaMeuPerfil = () => { location.hash = '#/meu-perfil'; };
+
+// Modal que não pode ser dispensado (troca de senha obrigatória)
+window.App.exigirTrocaSenha = () => {
+  if ($('#modalTrocaObrigatoria')) return;
+  openModal(`
+    <div class="modal fade" id="modalTrocaObrigatoria" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <span class="material-symbols-outlined me-1" style="color:var(--principal)">key</span>
+              Defina uma nova senha
+            </h5>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted small">
+              Por segurança, a senha inicial deve ser trocada antes de continuar usando o sistema.
+            </p>
+            <form id="formTrocaForcada" class="row g-3">
+              <div class="col-12"><label class="form-label">Senha atual *</label>
+                <input name="senhaAtual" type="password" class="form-control" autocomplete="current-password" required></div>
+              <div class="col-md-6"><label class="form-label">Nova senha *</label>
+                <input name="novaSenha" type="password" class="form-control" autocomplete="new-password" required></div>
+              <div class="col-md-6"><label class="form-label">Repetir a nova senha *</label>
+                <input name="confirma" type="password" class="form-control" autocomplete="new-password" required></div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" onclick="App.sair()">Sair do sistema</button>
+            <button class="btn btn-primary" type="button" onclick="App.salvarTrocaForcada()">Salvar nova senha</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+  $('#modalTrocaObrigatoria').querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => {
+    if (e.key === 'Enter') window.App.salvarTrocaForcada();
+  }));
+};
+
+window.App.salvarTrocaForcada = async () => {
+  const b = formData('formTrocaForcada');
+  if (!b.senhaAtual || !b.novaSenha) return toast('Preencha todos os campos.', 'danger');
+  if (b.novaSenha !== b.confirma) return toast('As senhas informadas não são iguais.', 'danger');
+  try {
+    await api('/api/auth/alterar-senha', { method: 'POST', body: { senhaAtual: b.senhaAtual, novaSenha: b.novaSenha } });
+    SESSAO.deve_alterar_senha = false;
+    toast('Senha alterada com sucesso.');
+    $('#modal-container').innerHTML = '';
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
 
 /* ============================================================
    DASHBOARD
@@ -227,7 +435,7 @@ async function clientes() {
     <div class="card-crud">
       <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <input class="form-control form-control-sm search-control" id="filtro" placeholder="Buscar...">
-        <button class="btn btn-primary btn-sm" onclick="App.novoCliente()"><span class="material-symbols-outlined">add</span> Novo Cliente</button>
+        <button class="btn btn-primary btn-sm" data-perm-acao="clientes.editar" onclick="App.novoCliente()"><span class="material-symbols-outlined">add</span> Novo Cliente</button>
       </div>
       <div class="table-responsive">
         <table class="table table-sm table-hover table-crud mb-0">
@@ -361,7 +569,7 @@ async function campanhas() {
         <div class="card-crud card h-100">
           <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
             <span class="text-muted small">${dados.length} campanha(s) cadastrada(s)</span>
-            <button class="btn btn-primary btn-sm" onclick="App.novaCampanha()"><span class="material-symbols-outlined">add</span> Nova Campanha</button>
+            <button class="btn btn-primary btn-sm" data-perm-acao="campanhas.editar" onclick="App.novaCampanha()"><span class="material-symbols-outlined">add</span> Nova Campanha</button>
           </div>
           <div class="table-responsive">
             <table class="table table-sm table-hover table-crud mb-0">
@@ -642,7 +850,7 @@ async function medidas() {
     <div class="card-crud">
       <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <span class="text-muted small">${dados.length} unidade(s) de medida</span>
-        <button class="btn btn-primary btn-sm" onclick="App.novaMedida()"><span class="material-symbols-outlined">add</span> Nova Medida</button>
+        <button class="btn btn-primary btn-sm" data-perm-acao="medidas.editar" onclick="App.novaMedida()"><span class="material-symbols-outlined">add</span> Nova Medida</button>
       </div>
       <div class="table-responsive">
         <table class="table table-sm table-hover table-crud mb-0">
@@ -739,7 +947,7 @@ async function insumos() {
     <div class="card-crud">
       <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <input class="form-control form-control-sm search-control" id="filtro" placeholder="Buscar...">
-        <button class="btn btn-primary btn-sm" onclick="App.novoInsumo()"><span class="material-symbols-outlined">add</span> Novo Insumo</button>
+        <button class="btn btn-primary btn-sm" data-perm-acao="insumos.editar" onclick="App.novoInsumo()"><span class="material-symbols-outlined">add</span> Novo Insumo</button>
       </div>
       <div class="table-responsive">
         <table class="table table-sm table-hover table-crud mb-0">
@@ -852,7 +1060,7 @@ async function receitas() {
     <div class="card-crud">
       <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <span class="text-muted small">${dados.length} receita(s) cadastrada(s)</span>
-        <button class="btn btn-primary btn-sm" onclick="App.novaReceita()"><span class="material-symbols-outlined">add</span> Nova Receita</button>
+        <button class="btn btn-primary btn-sm" data-perm-acao="receitas.editar" onclick="App.novaReceita()"><span class="material-symbols-outlined">add</span> Nova Receita</button>
       </div>
       <div class="table-responsive">
         <table class="table table-sm table-hover table-crud mb-0">
@@ -1013,7 +1221,7 @@ async function precificacao() {
     <div class="card-crud">
       <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <span class="text-muted small">${dados.length} produto(s) precificado(s)</span>
-        <button class="btn btn-primary btn-sm" onclick="App.novaPrecificacao()"><span class="material-symbols-outlined">add</span> Nova Precificação</button>
+        <button class="btn btn-primary btn-sm" data-perm-acao="precificacao.editar" onclick="App.novaPrecificacao()"><span class="material-symbols-outlined">add</span> Nova Precificação</button>
       </div>
       <div class="table-responsive">
         <table class="table table-sm table-hover table-crud mb-0">
@@ -1237,7 +1445,7 @@ async function caixa(inicio = '', fim = '') {
           <input type="date" id="fFim" class="form-control form-control-sm" value="${fim}">
           <button class="btn btn-sm btn-outline-primary" onclick="App.filtrarCaixa()"><span class="material-symbols-outlined">filter_alt</span> Filtrar</button>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="App.novoLancamento()"><span class="material-symbols-outlined">add</span> Novo Lançamento</button>
+        <button class="btn btn-primary btn-sm" data-perm-acao="caixa.editar" onclick="App.novoLancamento()"><span class="material-symbols-outlined">add</span> Novo Lançamento</button>
       </div>
       <div class="table-responsive">
         <table class="table table-sm table-hover table-crud mb-0">
@@ -1373,5 +1581,1129 @@ function cardRel(titulo, icon, desc, url, temPeriodo = false) {
     </div>`;
 }
 
-/* disponibilizar objeto global padrão */
-window.App = window.App || {};
+/* ============================================================
+   SEGURANÇA - USUÁRIOS
+   ============================================================ */
+const cacheGrupos = { dados: null };
+async function todosGrupos(forcar = false) {
+  if (forcar || !cacheGrupos.dados) cacheGrupos.dados = await api('/api/grupos');
+  return cacheGrupos.dados;
+}
+function invalidarGrupos() { cacheGrupos.dados = null; }
+
+const rotuloSituacao = u => {
+  if (u.situacao === 'bloqueado') return '<span class="badge text-bg-danger badge-status">bloqueado</span>';
+  if (u.bloqueio_ate) return '<span class="badge text-bg-warning badge-status">bloqueio temporário</span>';
+  return '<span class="badge text-bg-success badge-status">ativo</span>';
+};
+
+const rotuloEmail = u => u.email_verificado
+  ? `<span class="badge text-bg-success badge-status" title="E-mail confirmado">e-mail ok</span>`
+  : '<span class="badge text-bg-secondary badge-status" title="E-mail ainda não confirmado">e-mail pendente</span>';
+
+async function usuarios() {
+  const podeEditar = temPermissao('usuarios.editar');
+  $('#content').innerHTML = `
+    <div class="card-crud">
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <input class="form-control form-control-sm search-control" id="filtroUsuarios" placeholder="Buscar por nome, usuário, e-mail ou telefone...">
+        ${podeEditar ? `<button class="btn btn-primary btn-sm" onclick="App.novoUsuario()">
+          <span class="material-symbols-outlined">person_add</span> Novo Usuário</button>` : ''}
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover table-crud mb-0">
+          <thead><tr>
+            <th>Usuário</th><th>Contato</th><th>Grupos</th><th>Acesso</th>
+            <th>Situação</th><th>Último acesso</th><th class="text-end">Ações</th>
+          </tr></thead>
+          <tbody id="tbodyUsuarios"></tbody>
+        </table>
+      </div>
+    </div>`;
+
+  const [lista, grupos] = await Promise.all([api('/api/usuarios'), todosGrupos()]);
+  cacheGrupos.dados = grupos;
+
+  const linha = u => `
+    <tr>
+      <td>
+        <div class="d-flex align-items-center gap-2">
+          ${avatarHtml(u, 'avatar-md')}
+          <div class="lh-sm">
+            <strong>${esc(u.nome)}</strong>
+            <div class="text-muted small">@${esc(u.usuario)}${u.cargo ? ` · ${esc(u.cargo)}` : ''}</div>
+          </div>
+        </div>
+      </td>
+      <td>
+        <div class="small">${esc(u.email || '-')}</div>
+        <div class="text-muted small">${esc(u.telefone || '-')}</div>
+        <div class="mt-1">${rotuloEmail(u)}</div>
+      </td>
+      <td>${u.grupos.length
+        ? u.grupos.map(g => `<span class="badge text-bg-light">${esc(g.nome)}</span>`).join(' ')
+        : '<span class="text-muted small">sem grupo</span>'}</td>
+      <td>${u.acesso_total
+        ? '<span class="badge text-bg-primary badge-status">acesso total</span>'
+        : '<span class="text-muted small">limitado</span>'}</td>
+      <td>${rotuloSituacao(u)}${u.deve_alterar_senha
+        ? '<div class="mt-1"><span class="badge text-bg-warning badge-status">senha provisória</span></div>' : ''}</td>
+      <td class="text-muted small">${u.ultimo_acesso ? dataBR(u.ultimo_acesso) : 'nunca'}</td>
+      <td class="text-end actions text-nowrap">
+        ${podeEditar ? `
+          <button class="btn btn-sm btn-outline-secondary" onclick="App.abrirUsuario(${u.id})" title="Editar"><span class="material-symbols-outlined">edit</span></button>
+          <button class="btn btn-sm btn-outline-primary" onclick="App.redefinirSenhaUsuario(${u.id})" title="Redefinir senha"><span class="material-symbols-outlined">key</span></button>
+          ${u.situacao === 'bloqueado'
+            ? `<button class="btn btn-sm btn-outline-success" onclick="App.liberarUsuario(${u.id})" title="Liberar acesso"><span class="material-symbols-outlined">lock_open</span></button>`
+            : `<button class="btn btn-sm btn-outline-danger" onclick="App.bloquearUsuario(${u.id})" title="Bloquear acesso"><span class="material-symbols-outlined">lock</span></button>`}
+          <button class="btn btn-sm btn-outline-danger" onclick="App.excluirUsuario(${u.id})" title="Excluir"><span class="material-symbols-outlined">delete</span></button>`
+        : '<span class="text-muted small">somente leitura</span>'}
+      </td>
+    </tr>`;
+
+  const desenhar = filtrados => {
+    $('#tbodyUsuarios').innerHTML = filtrados.length ? filtrados.map(linha).join('') :
+      '<tr><td colspan="7" class="text-center text-muted py-4">Nenhum usuário encontrado.</td></tr>';
+  };
+  desenhar(lista);
+
+  $('#filtroUsuarios').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase().trim();
+    if (!q) return desenhar(lista);
+    desenhar(lista.filter(u => [u.nome, u.usuario, u.email, u.telefone, u.cargo,
+      ...u.grupos.map(g => g.nome)].join(' ').toLowerCase().includes(q)));
+  });
+}
+
+function formGruposCheck(grupos, sel = []) {
+  return grupos.map(g => `
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" name="grupos" value="${g.id}" id="grp${g.id}"
+        ${sel.some(s => Number(s) === g.id) ? 'checked' : ''}>
+      <label class="form-check-label" for="grp${g.id}">${esc(g.nome)}</label>
+    </div>`).join('') || '<p class="text-muted small mb-0">Nenhum grupo cadastrado.</p>';
+}
+
+async function abrirUsuario(id) {
+  const [u, grupos] = await Promise.all([api(`/api/usuarios/${id}`), todosGrupos()]);
+  const fotoAtual = u.foto_url
+    ? `<img src="${esc(u.foto_url)}?v=${Date.now()}" alt="">`
+    : esc(iniciais(u.nome));
+
+  openModal(`
+    <div class="modal fade" id="modalUsuario" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Editar Usuário</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="formUsuario" class="row g-3">
+              <div class="col-md-3 text-center">
+                <label class="foto-drop" title="Alterar foto">
+                  <span class="avatar avatar-lg">${fotoAtual}</span>
+                  <input type="file" name="foto" accept="image/png,image/jpeg,image/webp,image/gif">
+                  <span class="foto-overlay"><span class="material-symbols-outlined">photo_camera</span>Alterar</span>
+                </label>
+                <button type="button" class="btn btn-sm btn-link text-danger p-0 mt-1" onclick="App.removerFotoUsuario(${u.id})">
+                  Remover foto
+                </button>
+              </div>
+              <div class="col-md-9 row g-3">
+                <div class="col-md-7">
+                  <label class="form-label">Nome completo *</label>
+                  <input name="nome" class="form-control" value="${esc(u.nome)}" required maxlength="150">
+                </div>
+                <div class="col-md-5">
+                  <label class="form-label">Nome de acesso *</label>
+                  <input name="usuario" class="form-control" value="${esc(u.usuario)}" required
+                    pattern="[A-Za-z0-9._\\-]{3,60}" title="De 3 a 60 caracteres: letras, números, ponto, hífen ou sublinhado">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">E-mail *</label>
+                  <input name="email" type="email" class="form-control" value="${esc(u.email)}" required>
+                  <div class="form-text">${u.email_verificado
+                    ? 'E-mail confirmado.' : 'E-mail ainda não confirmado: a recuperação de senha fica indisponível.'}</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Telefone</label>
+                  <input name="telefone" class="form-control" value="${esc(u.telefone || '')}"
+                    placeholder="(11) 90000-0000" pattern="[0-9\\s()+-]{8,30}">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Cargo</label>
+                  <input name="cargo" class="form-control" value="${esc(u.cargo || '')}" maxlength="120">
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                  <button type="button" class="btn btn-outline-primary w-100" onclick="App.reenviarVerificacao(${u.id})">
+                    <span class="material-symbols-outlined">mark_email_read</span> Enviar confirmação de e-mail
+                  </button>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Grupos de acesso</label>
+                  <div class="border rounded p-3">${formGruposCheck(grupos, u.grupos.map(g => g.id))}</div>
+                </div>
+                <div class="col-12">
+                  <div class="alert alert-light border small mb-0">
+                    <div><strong>Situação:</strong> ${rotuloSituacao(u)}</div>
+                    <div><strong>Último acesso:</strong> ${u.ultimo_acesso ? dataBR(u.ultimo_acesso) : 'nunca'}${u.ultimo_ip ? ` (${esc(u.ultimo_ip)})` : ''}</div>
+                    ${u.bloqueado_motivo ? `<div><strong>Motivo do bloqueio:</strong> ${esc(u.bloqueado_motivo)}</div>` : ''}
+                    ${u.tentativas_falhas ? `<div><strong>Falhas de login:</strong> ${u.tentativas_falhas}</div>` : ''}
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="App.salvarUsuario(${u.id})">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+}
+
+App.abrirUsuario = abrirUsuario;
+
+App.novoUsuario = async () => {
+  const grupos = await todosGrupos();
+  openModal(`
+    <div class="modal fade" id="modalNovoUsuario" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Novo Usuário</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="formNovoUsuario" class="row g-3">
+              <div class="col-12">
+                <label class="form-label">Nome completo *</label>
+                <input name="nome" class="form-control" required maxlength="150">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Nome de acesso *</label>
+                <input name="usuario" class="form-control" required pattern="[A-Za-z0-9._\\-]{3,60}"
+                  title="De 3 a 60 caracteres: letras, números, ponto, hífen ou sublinhado">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">E-mail *</label>
+                <input name="email" type="email" class="form-control" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Telefone</label>
+                <input name="telefone" class="form-control" placeholder="(11) 90000-0000">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Cargo</label>
+                <input name="cargo" class="form-control" maxlength="120">
+              </div>
+              <div class="col-12">
+                <label class="form-label">Senha inicial</label>
+                <input name="senha" class="form-control" placeholder="Deixe em branco para gerar automaticamente">
+                <div class="form-text">Mínimo de 8 caracteres, com pelo menos uma letra e um número.</div>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Grupos de acesso</label>
+                <div class="border rounded p-3">${formGruposCheck(grupos)}</div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="App.criarUsuario()">Cadastrar</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+};
+
+App.criarUsuario = async () => {
+  const form = $('#formNovoUsuario');
+  const fd = new FormData(form);
+  const grupos = fd.getAll('grupos');
+  const corpo = {
+    nome: fd.get('nome'),
+    usuario: fd.get('usuario'),
+    email: fd.get('email'),
+    telefone: fd.get('telefone'),
+    cargo: fd.get('cargo'),
+    senha: fd.get('senha') || undefined,
+    grupos
+  };
+  try {
+    const r = await api('/api/usuarios', { method: 'POST', body: corpo });
+    closeModal();
+    toast(esc(r.mensagem));
+    mostrarSenhaGerada(r);
+    usuarios();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+function mostrarSenhaGerada(r) {
+  if (!r.senha_inicial) return;
+  openModal(`
+    <div class="modal fade" id="modalSenhaGerada" tabindex="-1" data-bs-backdrop="static">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <span class="material-symbols-outlined me-1" style="color:var(--principal)">key</span> Senha inicial
+            </h5>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted">
+              ${r.senha_provisoria
+                ? 'Senha gerada automaticamente. Entregue ao usuário: ele será obrigado a alterá-la no primeiro acesso.'
+                : 'Senha definida por você. O usuário deverá alterá-la no próximo acesso.'}
+            </p>
+            <div class="input-group">
+              <input class="form-control fw-bold" readonly value="${esc(r.senha_inicial)}" id="senhaGerada">
+              <button class="btn btn-outline-secondary" type="button" onclick="App.copiarSenha()">
+                <span class="material-symbols-outlined">content_copy</span>
+              </button>
+            </div>
+            ${r.confirmacao_email === true
+              ? '<div class="alert alert-success small mt-3 mb-0">E-mail de confirmação enviado.</div>'
+              : r.confirmacao_email === false
+                ? '<div class="alert alert-warning small mt-3 mb-0">Não foi possível enviar a confirmação por e-mail. Reenvie depois de configurar o SMTP.</div>'
+                : ''}
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" data-bs-dismiss="modal">Entendi</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+  $('#senhaGerada').select();
+}
+
+App.copiarSenha = async () => {
+  try {
+    await navigator.clipboard.writeText($('#senhaGerada').value);
+    toast('Senha copiada.');
+  } catch (e) {
+    $('#senhaGerada').select();
+    toast('Selecione e copie com Ctrl+C.', 'warning');
+  }
+};
+
+App.salvarUsuario = async (id) => {
+  const fd = new FormData($('#formUsuario'));
+  fd.set('grupos', fd.getAll('grupos'));
+  if (!fd.get('foto') || !fd.get('foto').size) fd.delete('foto');
+  try {
+    const r = await apiForm(`/api/usuarios/${id}`, fd, 'PUT');
+    closeModal();
+    toast(esc(r.mensagem) + (r.email_verificado ? '' : ' E-mail alterado: envie a confirmação.'));
+    const dados = await api('/api/auth/me');
+    SESSAO = dados.usuario;
+    pinturaTopbar();
+    usuarios();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+App.removerFotoUsuario = async (id) => {
+  if (!confirm('Remover a foto de perfil deste usuário?')) return;
+  try {
+    const r = await api(`/api/usuarios/${id}/foto`, { method: 'DELETE' });
+    toast(esc(r.mensagem));
+    closeModal();
+    usuarios();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+App.reenviarVerificacao = async (id) => {
+  try {
+    const r = await api(`/api/usuarios/${id}/reenviar-verificacao`, { method: 'POST' });
+    toast(esc(r.mensagem));
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+App.bloquearUsuario = async (id) => {
+  const motivo = prompt('Motivo do bloqueio (opcional):');
+  if (motivo === null) return;
+  try {
+    const r = await api(`/api/usuarios/${id}/bloquear`, { method: 'POST', body: { motivo } });
+    toast(esc(r.mensagem) + ` ${r.sessoes_encerradas} sessão(ões) encerrada(s).`);
+    usuarios();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+App.liberarUsuario = async (id) => {
+  if (!confirm('Liberar o acesso e as sessões deste usuário?')) return;
+  try {
+    const r = await api(`/api/usuarios/${id}/liberar`, { method: 'POST' });
+    toast(esc(r.mensagem));
+    usuarios();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+App.redefinirSenhaUsuario = async (id) => {
+  const modo = confirm(
+    'OK: enviar o link de redefinição por e-mail.\n\nCancelar: definir uma senha temporária agora.'
+  ) ? 'email' : 'temporaria';
+  if (modo === 'email') {
+    try {
+      const r = await api(`/api/usuarios/${id}/redefinir-senha`, { method: 'POST', body: { modo: 'email' } });
+      openModal(`
+        <div class="modal fade" id="modalResetEmail" tabindex="-1">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Redefinição por e-mail</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <p class="small">${esc(r.mensagem)}</p>
+                ${r.link ? `<div class="alert alert-warning small">
+                  <strong>SMTP desativado.</strong> Entregue o link manualmente:<br>
+                  <code class="text-break">${esc(r.link)}</code></div>` : ''}
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-primary" data-bs-dismiss="modal">Fechar</button>
+              </div>
+            </div>
+          </div>
+        </div>`);
+    } catch (e) { toast(esc(e.message), 'danger'); }
+    return;
+  }
+
+  const senha = prompt('Senha temporária (mínimo 8 caracteres, com letra e número). Deixe em branco para gerar:');
+  if (senha === null) return;
+  try {
+    const r = await api(`/api/usuarios/${id}/redefinir-senha`, {
+      method: 'POST',
+      body: { modo: 'temporaria', senha: senha || undefined }
+    });
+    toast(esc(r.mensagem));
+    mostrarSenhaGerada(r);
+    usuarios();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+App.excluirUsuario = async (id) => {
+  if (!confirm('Excluir definitivamente este usuário? As sessões dele serão encerradas.')) return;
+  try {
+    const r = await api(`/api/usuarios/${id}`, { method: 'DELETE' });
+    toast(esc(r.mensagem));
+    usuarios();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+/* ============================================================
+   SEGURANÇA - GRUPOS
+   ============================================================ */
+async function grupos() {
+  const podeEditar = temPermissao('grupos.editar');
+  $('#content').innerHTML = `
+    <div class="card-crud">
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <input class="form-control form-control-sm search-control" id="filtroGrupos" placeholder="Buscar grupo...">
+        ${podeEditar ? `<button class="btn btn-primary btn-sm" onclick="App.novoGrupo()">
+          <span class="material-symbols-outlined">add</span> Novo Grupo</button>` : ''}
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover table-crud mb-0">
+          <thead><tr>
+            <th>Grupo</th><th>Perfis vinculados</th><th>Usuários</th><th>Acesso</th><th class="text-end">Ações</th>
+          </tr></thead>
+          <tbody id="tbodyGrupos"></tbody>
+        </table>
+      </div>
+    </div>`;
+
+  const lista = await api('/api/grupos');
+  const linha = g => `
+    <tr>
+      <td>
+        <strong>${esc(g.nome)}</strong>${g.sistema ? ' <span class="badge text-bg-light badge-status">sistema</span>' : ''}
+        <div class="text-muted small">${esc(g.descricao || '-')}</div>
+      </td>
+      <td>${Number(g.total_perfis) || 0}</td>
+      <td>${Number(g.total_usuarios) || 0}</td>
+      <td>${g.acesso_total
+        ? '<span class="badge text-bg-primary badge-status">acesso total</span>'
+        : '<span class="text-muted small">limitado</span>'}</td>
+      <td class="text-end actions text-nowrap">
+        <button class="btn btn-sm btn-outline-secondary" onclick="App.verGrupo(${g.id})" title="Detalhes"><span class="material-symbols-outlined">visibility</span></button>
+        ${podeEditar && !g.sistema ? `
+          <button class="btn btn-sm btn-outline-secondary" onclick="App.abrirGrupo(${g.id})" title="Editar"><span class="material-symbols-outlined">edit</span></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="App.excluirGrupo(${g.id})" title="Excluir"><span class="material-symbols-outlined">delete</span></button>`
+          : `<span class="text-muted small">${g.sistema ? 'protegido' : 'somente leitura'}</span>`}
+      </td>
+    </tr>`;
+
+  const desenhar = filtrados => {
+    $('#tbodyGrupos').innerHTML = filtrados.length ? filtrados.map(linha).join('') :
+      '<tr><td colspan="5" class="text-center text-muted py-4">Nenhum grupo encontrado.</td></tr>';
+  };
+  desenhar(lista);
+
+  $('#filtroGrupos').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase().trim();
+    desenhar(q ? lista.filter(g => `${g.nome} ${g.descricao || ''}`.toLowerCase().includes(q)) : lista);
+  });
+}
+
+async function verGrupo(id) {
+  const [g, membros] = await Promise.all([api(`/api/grupos/${id}`), api(`/api/grupos/${id}/usuarios`)]);
+  openModal(`
+    <div class="modal fade" id="modalVerGrupo" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">${esc(g.nome)}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted small">${esc(g.descricao || 'Sem descrição.')}</p>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <h6>Perfis de acesso</h6>
+                ${g.perfis.length
+                  ? `<ul class="x-item-list">${g.perfis.map(p => `<li class="d-flex justify-content-between">
+                      <span>${esc(p.nome)}</span>
+                      ${p.acesso_total ? '<span class="badge text-bg-primary">total</span>' : ''}
+                    </li>`).join('')}</ul>`
+                  : '<p class="text-muted small">Nenhum perfil vinculado: os usuários deste grupo não acessam nada.</p>'}
+              </div>
+              <div class="col-md-6">
+                <h6>Usuários (${membros.length})</h6>
+                ${membros.length
+                  ? `<ul class="x-item-list">${membros.map(u => `<li class="d-flex align-items-center gap-2">
+                      ${avatarHtml(u, 'avatar-sm')}
+                      <span class="text-truncate">${esc(u.nome)} <span class="text-muted">@${esc(u.usuario)}</span></span>
+                    </li>`).join('')}</ul>`
+                  : '<p class="text-muted small">Nenhum usuário neste grupo.</p>'}
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" data-bs-dismiss="modal">Fechar</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+}
+
+App.verGrupo = verGrupo;
+
+function formPerfisCheck(perfis, sel = []) {
+  return perfis.map(p => `
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" name="perfis" value="${p.id}" id="perfil${p.id}"
+        ${sel.includes(p.id) ? 'checked' : ''}>
+      <label class="form-check-label" for="perfil${p.id}">
+        ${esc(p.nome)}${p.acesso_total ? ' <span class="badge text-bg-primary">acesso total</span>' : ''}
+      </label>
+    </div>`).join('') || '<p class="text-muted small mb-0">Nenhum perfil cadastrado.</p>';
+}
+
+App.abrirGrupo = async (id) => {
+  const [g, perfis] = await Promise.all([api(`/api/grupos/${id}`), api('/api/perfis')]);
+  abrirFormGrupo(g, perfis);
+};
+
+App.novoGrupo = async () => {
+  abrirFormGrupo(null, await api('/api/perfis'));
+};
+
+function abrirFormGrupo(g, perfis) {
+  const sel = g ? g.perfis.map(p => p.id) : [];
+  openModal(`
+    <div class="modal fade" id="modalGrupo" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">${g ? 'Editar Grupo' : 'Novo Grupo'}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="formGrupo" class="row g-3">
+              <div class="col-12">
+                <label class="form-label">Nome do grupo *</label>
+                <input name="nome" class="form-control" required maxlength="80" value="${g ? esc(g.nome) : ''}">
+              </div>
+              <div class="col-12">
+                <label class="form-label">Descrição</label>
+                <input name="descricao" class="form-control" maxlength="255" value="${g ? esc(g.descricao || '') : ''}">
+              </div>
+              <div class="col-12">
+                <label class="form-label">Perfis de acesso</label>
+                <div class="border rounded p-3">${formPerfisCheck(perfis, sel)}</div>
+                <div class="form-text">As permissões do usuário são a união dos perfis de todos os seus grupos.</div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="App.salvarGrupo(${g ? g.id : 'null'})">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+}
+
+App.salvarGrupo = async (id) => {
+  const fd = new FormData($('#formGrupo'));
+  const corpo = { nome: fd.get('nome'), descricao: fd.get('descricao'), perfis: fd.getAll('perfis') };
+  try {
+    if (id) await api(`/api/grupos/${id}/perfis`, { method: 'PUT', body: { perfis: corpo.perfis } });
+    const r = id
+      ? await api(`/api/grupos/${id}`, { method: 'PUT', body: { nome: corpo.nome, descricao: corpo.descricao } })
+      : await api('/api/grupos', { method: 'POST', body: corpo });
+    closeModal();
+    toast(esc(r.mensagem));
+    invalidarGrupos();
+    grupos();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+App.excluirGrupo = async (id) => {
+  if (!confirm('Excluir este grupo? Os vínculos com perfis e usuários serão removidos.')) return;
+  try {
+    const r = await api(`/api/grupos/${id}`, { method: 'DELETE' });
+    toast(esc(r.mensagem));
+    invalidarGrupos();
+    grupos();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+/* ============================================================
+   SEGURANÇA - PERFIS DE ACESSO
+   ============================================================ */
+async function perfis() {
+  const podeEditar = temPermissao('perfis.editar');
+  const [lista, catalogo] = await Promise.all([api('/api/perfis'), api('/api/perfis/catalogo')]);
+
+  $('#content').innerHTML = `
+    <div class="card-crud">
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <p class="mb-0 text-muted small">Cada perfil concede um conjunto de permissões. Combine os perfis nos grupos.</p>
+        ${podeEditar ? `<button class="btn btn-primary btn-sm" onclick="App.novoPerfil()">
+          <span class="material-symbols-outlined">add</span> Novo Perfil</button>` : ''}
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover table-crud mb-0">
+          <thead><tr>
+            <th>Perfil</th><th>Permissões</th><th>Grupos</th><th class="text-end">Ações</th>
+          </tr></thead>
+          <tbody>
+            ${lista.map(p => `
+              <tr>
+                <td>
+                  <strong>${esc(p.nome)}</strong>${p.sistema ? ' <span class="badge text-bg-light badge-status">sistema</span>' : ''}
+                  ${p.acesso_total ? ' <span class="badge text-bg-primary badge-status">acesso total</span>' : ''}
+                  <div class="text-muted small">${esc(p.descricao || '-')}</div>
+                </td>
+                <td>${p.acesso_total ? 'todas' : Number(p.total_permissoes) || 0}</td>
+                <td>${Number(p.total_grupos) || 0}</td>
+                <td class="text-end actions text-nowrap">
+                  <button class="btn btn-sm btn-outline-secondary" onclick="App.abrirPerfil(${p.id})" title="Permissões"><span class="material-symbols-outlined">tune</span></button>
+                  ${podeEditar && !p.sistema ? `
+                    <button class="btn btn-sm btn-outline-danger" onclick="App.excluirPerfil(${p.id})" title="Excluir"><span class="material-symbols-outlined">delete</span>`
+                  : `<span class="text-muted small">${p.sistema ? 'protegido' : 'somente leitura'}</span>`}
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="alert alert-light border small">
+      <span class="material-symbols-outlined" style="font-size:1rem">info</span>
+      O perfil <strong>Acesso Total</strong> é interno do sistema e não pode ser alterado nem excluído.
+    </div>`;
+}
+
+App.abrirPerfil = async (id) => {
+  const [p, catalogo] = await Promise.all([api(`/api/perfis/${id}`), api('/api/perfis/catalogo')]);
+  const marcadas = new Set(p.permissoes.map(x => x.chave));
+  const bloco = m => `
+    <div class="perm-modulo">
+      <h6>${esc(m.modulo)}</h6>
+      <div class="row g-1">
+        ${m.permissoes.map(x => `
+          <div class="col-md-6">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="permissoes" value="${x.chave}" id="p${x.chave.replace(/\./g, '-')}"
+                ${marcadas.has(x.chave) ? 'checked' : ''}>
+              <label class="form-check-label" for="p${x.chave.replace(/\./g, '-')}">${esc(x.rotulo)}</label>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  openModal(`
+    <div class="modal fade" id="modalPerfil" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Permissões de ${esc(p.nome)}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            ${p.acesso_total
+              ? '<div class="alert alert-info">Este perfil concede acesso total a todas as telas e ações.</div>'
+              : `<form id="formPerfil" class="row g-3 mb-3">
+                   <div class="col-md-8">
+                     <label class="form-label">Nome *</label>
+                     <input name="nome" class="form-control" required maxlength="80" value="${esc(p.nome)}">
+                   </div>
+                   <div class="col-md-4">
+                     <label class="form-label">Descrição</label>
+                     <input name="descricao" class="form-control" maxlength="255" value="${esc(p.descricao || '')}">
+                   </div>
+                 </form>
+                 <div class="perm-grid">${catalogo.modulos.map(bloco).join('')}</div>`}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            ${p.acesso_total ? '' : `<button type="button" class="btn btn-primary" onclick="App.salvarPerfil(${p.id})">Salvar</button>`}
+          </div>
+        </div>
+      </div>
+    </div>`);
+};
+
+App.novoPerfil = async () => {
+  const catalogo = await api('/api/perfis/catalogo');
+  const bloco = m => `
+    <div class="perm-modulo">
+      <h6>${esc(m.modulo)}</h6>
+      <div class="row g-1">
+        ${m.permissoes.map(x => `
+          <div class="col-md-6">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="permissoes" value="${x.chave}" id="np${x.chave.replace(/\./g, '-')}">
+              <label class="form-check-label" for="np${x.chave.replace(/\./g, '-')}">${esc(x.rotulo)}</label>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  openModal(`
+    <div class="modal fade" id="modalPerfil" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Novo Perfil de Acesso</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="formPerfil" class="row g-3 mb-3">
+              <div class="col-md-8">
+                <label class="form-label">Nome *</label>
+                <input name="nome" class="form-control" required maxlength="80">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Descrição</label>
+                <input name="descricao" class="form-control" maxlength="255">
+              </div>
+            </form>
+            <div class="perm-grid">${catalogo.modulos.map(bloco).join('')}</div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="App.salvarPerfil(null)">Criar perfil</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+};
+
+App.salvarPerfil = async (id) => {
+  const fd = new FormData($('#formPerfil'));
+  const corpo = {
+    nome: fd.get('nome'),
+    descricao: fd.get('descricao'),
+    permissoes: fd.getAll('permissoes')
+  };
+  try {
+    const r = id
+      ? await api(`/api/perfis/${id}`, { method: 'PUT', body: corpo })
+      : await api('/api/perfis', { method: 'POST', body: corpo });
+    closeModal();
+    toast(esc(r.mensagem));
+    invalidarGrupos();
+    perfis();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+App.excluirPerfil = async (id) => {
+  if (!confirm('Excluir este perfil de acesso?')) return;
+  try {
+    const r = await api(`/api/perfis/${id}`, { method: 'DELETE' });
+    toast(esc(r.mensagem));
+    invalidarGrupos();
+    perfis();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+/* ============================================================
+   SEGURANÇA - AUDITORIA
+   ============================================================ */
+const rotuloEvento = {
+  'login.sucesso': ['login', 'text-bg-success'],
+  'login.falha': ['login', 'text-bg-danger'],
+  'logout': ['logout', 'text-bg-secondary'],
+  'senha.alterada': ['key', 'text-bg-primary'],
+  'senha.reset_solicitado': ['mail', 'text-bg-primary'],
+  'senha.resetada': ['key', 'text-bg-warning'],
+  'perfil.alterado': ['manage_accounts', 'text-bg-info'],
+  'usuario.criado': ['person_add', 'text-bg-success'],
+  'usuario.editado': ['edit', 'text-bg-info'],
+  'usuario.excluido': ['delete', 'text-bg-danger'],
+  'usuario.bloqueado': ['lock', 'text-bg-danger'],
+  'usuario.liberado': ['lock_open', 'text-bg-success'],
+  'usuario.grupos_alterados': ['group', 'text-bg-info'],
+  'usuario.foto_atualizada': ['photo_camera', 'text-bg-info'],
+  'email.verificado': ['mark_email_read', 'text-bg-success'],
+  'email.reenviado': ['forward_to_inbox', 'text-bg-info'],
+  'grupo.criado': ['workspaces', 'text-bg-success'],
+  'grupo.editado': ['edit', 'text-bg-info'],
+  'grupo.excluido': ['delete', 'text-bg-danger'],
+  'grupo.perfis_alterados': ['badge', 'text-bg-info'],
+  'perfil.criado': ['badge', 'text-bg-success'],
+  'perfil.editado': ['edit', 'text-bg-info'],
+  'perfil.excluido': ['delete', 'text-bg-danger']
+};
+
+async function auditoria(filtros = {}) {
+  if (!$('#filtrosAuditoria')) {
+    $('#content').innerHTML = `
+      <div class="card-crud">
+        <div class="card-header">
+          <div class="row g-2" id="filtrosAuditoria">
+            <div class="col-md-3"><input class="form-control form-control-sm" id="audQ" placeholder="Buscar na descrição, usuário ou IP..."></div>
+            <div class="col-md-3"><input type="date" class="form-control form-control-sm" id="audDe" title="Data inicial"></div>
+            <div class="col-md-3"><input type="date" class="form-control form-control-sm" id="audAte" title="Data final"></div>
+            <div class="col-md-2">
+              <select class="form-select form-select-sm" id="audEvento">
+                <option value="">Todos os eventos</option>
+              </select>
+            </div>
+            <div class="col-md-1 d-grid">
+              <button class="btn btn-sm btn-outline-secondary" onclick="App.limitarAuditoria()">Ir</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover table-crud mb-0">
+            <thead><tr>
+              <th>Quando</th><th>Evento</th><th>Usuário</th><th>Descrição</th><th>IP</th>
+            </tr></thead>
+            <tbody id="tbodyAuditoria"></tbody>
+          </table>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center" id="paginacaoAuditoria"></div>
+      </div>`;
+
+    ['audQ', 'audDe', 'audAte', 'audEvento'].forEach(id => {
+      const el = $(`#${id}`);
+      if (id === 'audQ') el.addEventListener('input', debounce(() => auditoria(filtrosAuditoria(0)), 400));
+      else el.addEventListener('change', () => auditoria(filtrosAuditoria(0)));
+    });
+  }
+
+  const params = new URLSearchParams({ limite: '50' });
+  if (filtros.q) params.set('q', filtros.q);
+  if (filtros.de) params.set('de', filtros.de);
+  if (filtros.ate) params.set('ate', filtros.ate);
+  if (filtros.evento) params.set('evento', filtros.evento);
+  if (filtros.offset) params.set('offset', String(filtros.offset));
+  if (filtros.sucesso !== undefined) params.set('sucesso', String(filtros.sucesso));
+
+  const r = await api(`/api/auditoria?${params}`);
+
+  const selEvento = $('#audEvento');
+  if (selEvento && selEvento.options.length <= 1) {
+    r.eventos.forEach(e => selEvento.add(new Option(e, e)));
+  }
+
+  $('#tbodyAuditoria').innerHTML = r.registros.length ? r.registros.map(l => {
+    const meta = rotuloEvento[l.evento] || ['info', 'text-bg-light'];
+    return `
+      <tr class="${l.sucesso ? 'log-ok' : 'log-falha'}">
+        <td class="text-muted small text-nowrap">${dataBR(l.created_at)}<div>${new Date(l.created_at).toLocaleTimeString('pt-BR')}</div></td>
+        <td><span class="badge ${meta[1]} badge-status"><span class="material-symbols-outlined" style="font-size:.8rem">${meta[0]}</span> ${esc(l.evento)}</span></td>
+        <td class="small">${esc(l.usuario_nome || 'sistema')}</td>
+        <td class="small log-evt">${esc(l.descricao || '-')}</td>
+        <td class="text-muted small">${esc(l.ip || '-')}</td>
+      </tr>`;
+  }).join('') : '<tr><td colspan="5" class="text-center text-muted py-4">Nenhum evento encontrado.</td></tr>';
+
+  const inicio = r.total ? r.offset + 1 : 0;
+  const fim = Math.min(r.offset + r.limite, r.total);
+  $('#paginacaoAuditoria').innerHTML = `
+    <small class="text-muted">${inicio}–${fim} de ${r.total} registro(s)</small>
+    <div class="btn-group btn-group-sm">
+      <button class="btn btn-outline-secondary" ${r.offset <= 0 ? 'disabled' : ''} onclick="App.paginarAuditoria(-1)">Anterior</button>
+      <button class="btn btn-outline-secondary" ${fim >= r.total ? 'disabled' : ''} onclick="App.paginarAuditoria(1)">Próxima</button>
+    </div>`;
+  App._auditoriaAtual = { ...filtros, offset: r.offset, limite: r.limite, total: r.total };
+}
+
+function filtrosAuditoria(offset) {
+  return {
+    q: $('#audQ').value.trim(),
+    de: $('#audDe').value,
+    ate: $('#audAte').value,
+    evento: $('#audEvento').value,
+    offset
+  };
+}
+
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+App.limitarAuditoria = () => auditoria(filtrosAuditoria(0));
+App.paginarAuditoria = (passo) => {
+  const a = App._auditoriaAtual || { offset: 0, limite: 50 };
+  auditoria({ ...a, offset: Math.max(0, a.offset + passo * a.limite) });
+};
+
+/* ============================================================
+   MEU PERFIL
+   ============================================================ */
+async function meuPerfil() {
+  const u = SESSAO;
+  let sessoes = [];
+  try { sessoes = (await api('/api/auth/sessoes')).sessoes; } catch (e) { sessoes = []; }
+  $('#content').innerHTML = `
+    <div class="row g-3">
+      <div class="col-lg-4">
+        <div class="card-crud h-100">
+          <div class="card-body text-center">
+            <label class="foto-drop" title="Alterar foto">
+              <span class="avatar avatar-lg" id="minhaFoto">
+                ${u.foto_url ? `<img src="${esc(u.foto_url)}?v=${Date.now()}" alt="">` : esc(iniciais(u.nome))}
+              </span>
+              <input type="file" id="minhaFotoInput" accept="image/png,image/jpeg,image/webp,image/gif">
+              <span class="foto-overlay"><span class="material-symbols-outlined">photo_camera</span>Alterar</span>
+            </label>
+            <h5 class="mt-3 mb-1">${esc(u.nome)}</h5>
+            <p class="text-muted small mb-2">@${esc(u.usuario)}</p>
+            <div class="d-flex flex-wrap gap-1 justify-content-center">
+              ${u.acesso_total ? '<span class="badge text-bg-primary">acesso total</span>' : ''}
+              ${u.email_verificado
+                ? '<span class="badge text-bg-success">e-mail confirmado</span>'
+                : '<span class="badge text-bg-secondary">e-mail pendente</span>'}
+            </div>
+            <div class="mt-2">${u.grupos.length
+              ? u.grupos.map(g => `<span class="badge text-bg-light">${esc(g.nome)}</span>`).join(' ')
+              : '<span class="text-muted small">sem grupo vinculado</span>'}</div>
+            ${u.foto_url ? `<button class="btn btn-sm btn-link text-danger mt-2" onclick="App.removerMinhaFoto()">Remover foto</button>` : ''}
+          </div>
+          <div class="card-footer small text-muted">
+            <div class="d-flex justify-content-between"><span>Conta criada</span><span>${dataBR(u.ultimo_acesso)}</span></div>
+            <div class="d-flex justify-content-between"><span>Último acesso</span><span>${u.ultimo_acesso ? dataBR(u.ultimo_acesso) : 'nunca'}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div class="card-crud mb-3">
+          <div class="card-header"><h6 class="mb-0">Dados de contato</h6></div>
+          <div class="card-body">
+            <form id="formMeuPerfil" class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Nome completo *</label>
+                <input name="nome" class="form-control" value="${esc(u.nome)}" required maxlength="150">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Cargo</label>
+                <input name="cargo" class="form-control" value="${esc(u.cargo || '')}" maxlength="120">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">E-mail preferencial *</label>
+                <input name="email" type="email" class="form-control" value="${esc(u.email)}" required>
+                <div class="form-text">Usado para recuperação de senha e avisos do sistema.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Telefone</label>
+                <input name="telefone" class="form-control" value="${esc(u.telefone || '')}"
+                  placeholder="(11) 90000-0000" pattern="[0-9\\s()+-]{8,30}">
+              </div>
+            </form>
+          </div>
+          <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="small text-muted">
+              ${u.email_verificado
+                ? '<span class="material-symbols-outlined" style="font-size:.9rem">verified</span> E-mail confirmado.'
+                : '<span class="material-symbols-outlined" style="font-size:.9rem">warning</span> E-mail ainda não confirmado.'}
+            </div>
+            <div class="d-flex gap-2">
+              ${u.email_verificado ? '' : `<button class="btn btn-sm btn-outline-primary" onclick="App.reenviarMeuVerificacao()">
+                <span class="material-symbols-outlined">mark_email_read</span> Enviar confirmação</button>`}
+              <button class="btn btn-sm btn-primary" onclick="App.salvarMeuPerfil()">Salvar alterações</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-crud mb-3">
+          <div class="card-header"><h6 class="mb-0">Alterar senha</h6></div>
+          <div class="card-body">
+            <form id="formAlterarSenha" class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label">Senha atual *</label>
+                <input name="senhaAtual" type="password" class="form-control" autocomplete="current-password" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Nova senha *</label>
+                <input name="novaSenha" type="password" class="form-control" autocomplete="new-password" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Repetir a nova senha *</label>
+                <input name="confirmaSenha" type="password" class="form-control" autocomplete="new-password" required>
+              </div>
+            </form>
+          </div>
+          <div class="card-footer text-end">
+            <button class="btn btn-sm btn-primary" onclick="App.alterarMinhaSenha()">
+              <span class="material-symbols-outlined">key</span> Alterar senha
+            </button>
+          </div>
+        </div>
+
+        <div class="card-crud">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Minhas sessões</h6>
+            <a href="#/sessoes" class="btn btn-sm btn-outline-secondary">Gerenciar</a>
+          </div>
+          <div class="card-body"><p class="text-muted small mb-0">
+            Há <strong>${sessoes.length}</strong> sessão(ões) ativa(s) vinculada(s) a esta conta.
+            Se reconhecer um acesso estranho, encerre a sessão e troque a senha.
+          </p></div>
+        </div>
+      </div>
+    </div>`;
+
+  $('#minhaFotoInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    App.enviarFotoPerfil(file).then(() => meuPerfil());
+  });
+}
+
+App.salvarMeuPerfil = async () => {
+  const fd = new FormData($('#formMeuPerfil'));
+  const emailAntes = SESSAO.email;
+  try {
+    const r = await apiForm('/api/auth/meu-perfil', fd, 'PUT');
+    const dados = await api('/api/auth/me');
+    SESSAO = dados.usuario;
+    pinturaTopbar();
+    toast(esc(r.mensagem) + (emailAntes === SESSAO.email ? '' : ' Confirme o novo e-mail para habilitar a recuperação.'));
+    meuPerfil();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+App.enviarFotoPerfil = async file => {
+  const fd = new FormData();
+  fd.append('foto', file);
+  try {
+    const r = await apiForm('/api/auth/meu-perfil/foto', fd);
+    const dados = await api('/api/auth/me');
+    SESSAO = dados.usuario;
+    pinturaTopbar();
+    toast(esc(r.mensagem));
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+App.removerMinhaFoto = async () => {
+  if (!confirm('Remover a sua foto de perfil?')) return;
+  try {
+    await api('/api/auth/meu-perfil/foto', { method: 'DELETE' });
+    const dados = await api('/api/auth/me');
+    SESSAO = dados.usuario;
+    pinturaTopbar();
+    toast('Foto removida.');
+    meuPerfil();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+App.reenviarMeuVerificacao = async () => {
+  try {
+    const r = await api('/api/auth/reenviar-verificacao', { method: 'POST', body: {} });
+    toast(esc(r.mensagem));
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+App.alterarMinhaSenha = async () => {
+  const b = formData('formAlterarSenha');
+  if (!b.senhaAtual || !b.novaSenha) return toast('Preencha todos os campos.', 'danger');
+  if (b.novaSenha !== b.confirmaSenha) return toast('As senhas informadas não são iguais.', 'danger');
+  try {
+    const r = await api('/api/auth/alterar-senha', {
+      method: 'POST',
+      body: { senhaAtual: b.senhaAtual, novaSenha: b.novaSenha }
+    });
+    const dados = await api('/api/auth/me');
+    SESSAO = dados.usuario;
+    toast(esc(r.mensagem || 'Senha alterada com sucesso.'));
+    $('#formAlterarSenha').reset();
+    meuPerfil();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+/* ============================================================
+   MINHAS SESSÕES
+   ============================================================ */
+async function minhasSessoes() {
+  const r = await api('/api/auth/sessoes');
+  $('#content').innerHTML = `
+    <div class="card-crud">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <p class="mb-0 text-muted small">Encerre as sessões que não reconhecer e troque a senha.</p>
+        <button class="btn btn-sm btn-outline-danger" onclick="App.encerrarOutrasSessoes()">
+          <span class="material-symbols-outlined">logout</span> Encerrar as outras
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover table-crud mb-0">
+          <thead><tr>
+            <th>Dispositivo</th><th>IP</th><th>Início</th><th>Último uso</th><th>Expira</th><th class="text-end">Ações</th>
+          </tr></thead>
+          <tbody>
+            ${r.sessoes.map(s => `
+              <tr class="${s.atual ? 'sessao-atual' : ''}">
+                <td>
+                  ${s.atual ? '<span class="badge text-bg-primary badge-status">esta sessão</span>' : ''}
+                  <div class="small text-truncate" style="max-width:22rem">${esc(s.user_agent || 'desconhecido')}</div>
+                </td>
+                <td class="small">${esc(s.ip || '-')}</td>
+                <td class="text-muted small">${dataBR(s.created_at)}</td>
+                <td class="text-muted small">${s.ultimo_acesso ? new Date(s.ultimo_acesso).toLocaleString('pt-BR') : '-'}</td>
+                <td class="text-muted small">${dataBR(s.expira_em)}</td>
+                <td class="text-end">
+                  ${s.atual ? '' : `<button class="btn btn-sm btn-outline-danger" onclick="App.encerrarSessao(${s.id})">
+                    Encerrar</button>`}
+                </td>
+              </tr>`).join('') || '<tr><td colspan="6" class="text-center text-muted py-4">Nenhuma sessão ativa.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+App.encerrarSessao = async (id) => {
+  try {
+    const resp = await api(`/api/auth/sessoes/${id}`, { method: 'DELETE' });
+    toast(esc(resp.mensagem));
+    minhasSessoes();
+  } catch (e) { toast(esc(e.message), 'danger'); }
+};
+
+App.encerrarOutrasSessoes = async () => {
+  if (!confirm('Encerrar todas as outras sessões abertas?')) return;
+  const r = await api('/api/auth/sessoes');
+  const outras = r.sessoes.filter(s => !s.atual);
+  for (const s of outras) await api(`/api/auth/sessoes/${s.id}`, { method: 'DELETE' }).catch(() => {});
+  toast(`${outras.length} sessão(ões) encerrada(s).`);
+  minhasSessoes();
+};

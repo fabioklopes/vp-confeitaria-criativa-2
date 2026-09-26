@@ -1,7 +1,11 @@
 const express = require('express');
 const db = require('../db');
+const auth = require('../lib/auth');
 
 const router = express.Router();
+
+router.use(auth.exigirLogin, auth.exigirPermissao('caixa.ver'));
+const EXIGIR_EDITAR = auth.exigirPermissao('caixa.editar');
 
 function validar(body) {
   if (!body.tipo || !['entrada', 'saida'].includes(body.tipo)) return 'Informe o tipo (entrada ou saída).';
@@ -33,7 +37,7 @@ router.get('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', EXIGIR_EDITAR, async (req, res, next) => {
   try {
     const erro = validar(req.body);
     if (erro) return res.status(400).json({ erro });
@@ -46,7 +50,7 @@ router.post('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', EXIGIR_EDITAR, async (req, res, next) => {
   try {
     const erro = validar(req.body);
     if (erro) return res.status(400).json({ erro });
@@ -60,7 +64,7 @@ router.put('/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', EXIGIR_EDITAR, async (req, res, next) => {
   try {
     const r = await db.query('DELETE FROM tb_caixa WHERE id = ?', [req.params.id]);
     if (!r.affectedRows) return res.status(404).json({ erro: 'Lançamento não encontrado.' });

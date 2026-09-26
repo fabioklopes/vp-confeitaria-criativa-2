@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entrar - Confeitaria ERP</title>
+  <link href="/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+  <link href="/vendor/material-symbols/material-symbols-outlined.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+</head>
+<body class="auth-body">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <span class="material-symbols-outlined">cake</span>
+        <div>
+          <strong>Confeitaria</strong>
+          <small>ERP de Gestão</small>
+        </div>
+      </div>
+
+      <div id="avisoEmail" class="alert d-none" role="alert"></div>
+
+      <h1 class="auth-title">Acessar o sistema</h1>
+      <p class="auth-sub">Informe suas credenciais para continuar.</p>
+
+      <form id="formLogin" novalidate>
+        <div class="mb-3">
+          <label class="form-label" for="usuario">Usuário ou e-mail</label>
+          <div class="input-group">
+            <span class="input-group-text"><span class="material-symbols-outlined">person</span></span>
+            <input id="usuario" name="usuario" class="form-control" autocomplete="username"
+              autocapitalize="none" spellcheck="false" required autofocus>
+          </div>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label" for="senha">Senha</label>
+          <div class="input-group">
+            <span class="input-group-text"><span class="material-symbols-outlined">lock</span></span>
+            <input id="senha" name="senha" type="password" class="form-control" autocomplete="current-password" required>
+            <button class="btn btn-outline-secondary" type="button" id="btnVerSenha" tabindex="-1"
+              aria-label="Mostrar ou ocultar a senha">
+              <span class="material-symbols-outlined">visibility</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3 small">
+          <span id="tentativas" class="text-muted"></span>
+          <a href="/recuperar-senha.html" class="text-decoration-none">Esqueci minha senha</a>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100" id="btnEntrar">
+          <span class="material-symbols-outlined me-1">login</span> Entrar
+        </button>
+      </form>
+
+      <p class="auth-foot">
+        <span class="material-symbols-outlined" style="font-size:1rem">shield_lock</span>
+        Acesso protegido por criptografia Argon2id.
+      </p>
+    </div>
+  </div>
+
+  <script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="/js/login.js"></script>
+</body>
+</html>

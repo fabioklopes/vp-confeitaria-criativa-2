@@ -1,7 +1,10 @@
 const express = require('express');
 const db = require('../db');
+const auth = require('../lib/auth');
 
 const router = express.Router();
+
+router.use(auth.exigirLogin, auth.exigirPermissao('dashboard.ver'));
 
 const LIMIT = 5;
 

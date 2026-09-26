@@ -3,10 +3,15 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const db = require('../db');
+const auth = require('../lib/auth');
 const config = require('../config');
 const wa = require('../lib/whatsapp');
 
 const router = express.Router();
+
+router.use(auth.exigirLogin, auth.exigirPermissao('campanhas.ver'));
+const EXIGIR_EDITAR = auth.exigirPermissao('campanhas.editar');
+const EXIGIR_ENVIAR = auth.exigirPermissao('campanhas.enviar');
 
 const DIR_CAMPANHAS = path.join(config.uploadDir, 'campanhas');
 fs.mkdirSync(DIR_CAMPANHAS, { recursive: true, mode: 0o700 });
@@ -116,7 +121,7 @@ router.get('/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.post('/', uploadSingle('arquivo'), async (req, res, next) => {
+router.post('/', EXIGIR_EDITAR, uploadSingle('arquivo'), async (req, res, next) => {
   try {
     const erro = validarPlain(req.body);
     if (erro) return res.status(400).json({ erro });
@@ -145,7 +150,7 @@ router.post('/', uploadSingle('arquivo'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.put('/:id', uploadSingle('arquivo'), async (req, res, next) => {
+router.put('/:id', EXIGIR_EDITAR, uploadSingle('arquivo'), async (req, res, next) => {
   try {
     const erro = validarPlain(req.body);
     if (erro) return res.status(400).json({ erro });
@@ -174,7 +179,7 @@ router.put('/:id', uploadSingle('arquivo'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', EXIGIR_EDITAR, async (req, res, next) => {
   try {
     const linhas = await db.query('SELECT arquivo FROM tb_capanhas WHERE id = ?', [req.params.id]);
     if (!linhas.length) return res.status(404).json({ erro: 'Campanha não encontrada.' });
@@ -188,7 +193,7 @@ router.delete('/:id', async (req, res, next) => {
 });
 
 /* ---- Envio via WhatsApp ---- */
-router.post('/:id/enviar', async (req, res, next) => {
+router.post('/:id/enviar', EXIGIR_ENVIAR, async (req, res, next) => {
   try {
     const camp = await db.query('SELECT id, nome, arquivo, descricao FROM tb_capanhas WHERE id = ?', [req.params.id]);
     if (!camp.length) return res.status(404).json({ erro: 'Campanha não encontrada.' });
@@ -208,7 +213,7 @@ router.get('/:id/envio/status', async (req, res) => {
   res.json({ ativo: !p.concluido, ...p });
 });
 
-router.post('/:id/envio/cancelar', async (req, res) => {
+router.post('/:id/envio/cancelar', EXIGIR_ENVIAR, async (req, res) => {
   const ok = wa.cancelar(req.params.id);
   res.json({ ok, mensagem: ok ? 'Envio cancelado: após a mensagem em curso.' : 'Nenhum envio ativo para esta campanha.' });
 });
