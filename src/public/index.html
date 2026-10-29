@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confeitaria Criativa</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #fffaf7;
+        --panel: #fff;
+        --primary: #d96a8b;
+        --primary-dark: #ba4966;
+        --secondary: #f8d7dc;
+        --text: #2c1f2e;
+        --muted: #6f5b68;
+        --border: #f1dfe4;
+        --success: #2d9a6b;
+        --warning: #e5a84d;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: 'Inter', sans-serif;
+        background: linear-gradient(180deg, #fffaf7 0%, #fff5f3 100%);
+        color: var(--text);
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 1050;
+        background: rgba(255,255,255,0.94);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .brand {
+        font-weight: 800;
+        color: var(--primary-dark);
+      }
+
+      .offcanvas-menu {
+        width: min(85vw, 320px);
+        background: #fff;
+      }
+
+      .nav-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: 0 18px 35px rgba(160, 92, 117, 0.08);
+      }
+
+      .metric-card {
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        background: linear-gradient(135deg, #fff, #fff8f8);
+        padding: 1rem;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      .card-title {
+        font-size: 0.9rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .value {
+        font-size: clamp(1.5rem, 3vw, 2.4rem);
+        font-weight: 800;
+        margin-top: .25rem;
+      }
+
+      .action-btn {
+        border-radius: 12px;
+        padding: .8rem 1rem;
+      }
+
+      @media (min-width: 992px) {
+        .main-shell { padding: 2rem; }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="topbar navbar navbar-expand-lg shadow-sm">
+      <div class="container-fluid px-3 px-lg-4">
+        <a class="navbar-brand brand" href="#"><i class="fa-solid fa-cake-candles me-2"></i>Confeitaria Criativa</a>
+        <button class="btn btn-outline-secondary ms-auto" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+    </nav>
+
+    <div class="offcanvas offcanvas-end offcanvas-menu" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+      <div class="offcanvas-header border-bottom">
+        <h5 id="offcanvasMenuLabel" class="mb-0 brand"><i class="fa-solid fa-cake-candles me-2"></i>Menu</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+      </div>
+      <div class="offcanvas-body p-3">
+        <nav class="nav flex-column gap-2">
+          <button class="btn btn-light text-start nav-link active" data-section="dashboard"><i class="fa-solid fa-gauge me-2"></i>Painel de Controle</button>
+          <button class="btn btn-light text-start nav-link" data-section="usuarios"><i class="fa-solid fa-users me-2"></i>Usuários</button>
+          <button class="btn btn-light text-start nav-link" data-section="clientes"><i class="fa-solid fa-user-tie me-2"></i>Clientes</button>
+          <button class="btn btn-light text-start nav-link" data-section="insumos"><i class="fa-solid fa-box me-2"></i>Insumos</button>
+          <button class="btn btn-light text-start nav-link" data-section="precificacao"><i class="fa-solid fa-dollar-sign me-2"></i>Precificação</button>
+          <button class="btn btn-light text-start nav-link" data-section="receitas"><i class="fa-solid fa-bowl-food me-2"></i>Receitas Prontas</button>
+          <button class="btn btn-light text-start nav-link" data-section="campanhas"><i class="fa-solid fa-bullhorn me-2"></i>Campanhas</button>
+          <button class="btn btn-light text-start nav-link" data-section="financeiro"><i class="fa-solid fa-wallet me-2"></i>Controle Financeiro</button>
+          <button class="btn btn-light text-start nav-link" data-section="relatorios"><i class="fa-solid fa-chart-line me-2"></i>Relatórios</button>
+        </nav>
+      </div>
+    </div>
+
+    <main class="main-shell container-fluid py-4 px-3 px-lg-4">
+      <section id="dashboard" class="app-section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="mb-0">Painel de Controle</h2>
+          <button class="btn btn-primary action-btn" onclick="loadDashboard()"><i class="fa-solid fa-rotate me-2"></i>Atualizar</button>
+        </div>
+        <div id="cardsContainer" class="row g-3"></div>
+      </section>
+
+      <section id="usuarios" class="app-section d-none">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="mb-0">Usuários</h2>
+          <button class="btn btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#userModal"><i class="fa-solid fa-plus me-2"></i>Novo</button>
+        </div>
+        <div class="card nav-card p-3">
+          <div class="table-wrap">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Usuário</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="usuariosTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="clientes" class="app-section d-none">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="mb-0">Clientes</h2>
+          <button class="btn btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#clienteModal"><i class="fa-solid fa-plus me-2"></i>Novo</button>
+        </div>
+        <div class="card nav-card p-3">
+          <div class="table-wrap">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Endereço</th>
+                  <th>Bairro</th>
+                  <th>Celular</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="clientesTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="insumos" class="app-section d-none">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="mb-0">Insumos</h2>
+          <button class="btn btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#insumoModal"><i class="fa-solid fa-plus me-2"></i>Novo</button>
+        </div>
+        <div class="card nav-card p-3">
+          <div class="table-wrap">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Unidade</th>
+                  <th>Quantidade</th>
+                  <th>Valor</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="insumosTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="precificacao" class="app-section d-none">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="mb-0">Precificação</h2>
+          <button class="btn btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#precificacaoModal"><i class="fa-solid fa-plus me-2"></i>Adicionar</button>
+        </div>
+        <div class="card nav-card p-3">
+          <div class="table-wrap">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Unidade</th>
+                  <th>Qtd. Usada</th>
+                  <th>Custo</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="precificacaoTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="receitas" class="app-section d-none">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="mb-0">Receitas Prontas</h2>
+          <button class="btn btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#receitaModal"><i class="fa-solid fa-plus me-2"></i>Adicionar</button>
+        </div>
+        <div class="card nav-card p-3">
+          <div class="table-wrap">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Unidade</th>
+                  <th>Qtd. Usada</th>
+                  <th>Custo</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="receitasTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="campanhas" class="app-section d-none">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="mb-0">Campanhas</h2>
+          <button class="btn btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#campanhaModal"><i class="fa-solid fa-plus me-2"></i>Novo</button>
+        </div>
+        <div class="card nav-card p-3">
+          <div class="table-wrap">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Desconto</th>
+                  <th>Ativa</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="campanhasTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="financeiro" class="app-section d-none">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="mb-0">Controle Financeiro</h2>
+          <button class="btn btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#financeiroModal"><i class="fa-solid fa-plus me-2"></i>Novo</button>
+        </div>
+        <div class="card nav-card p-3">
+          <div class="table-wrap">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Descrição</th>
+                  <th>Categoria</th>
+                  <th>Valor</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="financeiroTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="relatorios" class="app-section d-none">
+        <div class="card nav-card p-4">
+          <h2 class="mb-3">Relatórios</h2>
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <div class="metric-card">
+                <div class="card-title">Receitas vs gastos</div>
+                <div class="value text-success" id="relatorioFinanceiro">R$ 0,00</div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="metric-card">
+                <div class="card-title">Custo total em precificação</div>
+                <div class="value text-warning" id="relatorioPrecificacao">R$ 0,00</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Usuário</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+          </div>
+          <div class="modal-body">
+            <form id="userForm">
+              <input type="hidden" name="id" />
+              <div class="mb-3"><input class="form-control" name="nomeCompleto" placeholder="Nome completo" required /></div>
+              <div class="mb-3"><input class="form-control" name="usuario" placeholder="Usuário" required /></div>
+              <div class="mb-3"><input class="form-control" name="senha" type="password" placeholder="Senha" /></div>
+              <button type="submit" class="btn btn-primary w-100">Salvar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="clienteModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title">Cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <form id="clienteForm">
+              <input type="hidden" name="id" />
+              <div class="mb-3"><input class="form-control" name="nomeCompleto" placeholder="Nome completo" required /></div>
+              <div class="mb-3"><input class="form-control" name="endereco" placeholder="Endereço" required /></div>
+              <div class="mb-3"><input class="form-control" name="bairro" placeholder="Bairro" required /></div>
+              <div class="mb-3"><input class="form-control" name="cep" placeholder="CEP" required /></div>
+              <div class="mb-3"><input class="form-control" name="celular" placeholder="Celular" required /></div>
+              <button type="submit" class="btn btn-primary w-100">Salvar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="insumoModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title">Insumo</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <form id="insumoForm">
+              <input type="hidden" name="id" />
+              <div class="mb-3"><input class="form-control" name="produto" placeholder="Produto" required /></div>
+              <div class="mb-3">
+                <select class="form-select" name="unidadeMedida" required>
+                  <option value="Litro">Litro</option>
+                  <option value="Quilo">Quilo</option>
+                  <option value="Unidade">Unidade</option>
+                </select>
+              </div>
+              <div class="mb-3"><input class="form-control" type="number" step="0.001" name="quantidadeCompra" placeholder="Quantidade de compra" required /></div>
+              <div class="mb-3"><input class="form-control" type="number" step="0.01" name="valor" placeholder="Valor" required /></div>
+              <button type="submit" class="btn btn-primary w-100">Salvar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="precificacaoModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title">Precificação</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <form id="precificacaoForm">
+              <input type="hidden" name="id" />
+              <div class="mb-3">
+                <select class="form-select" name="insumoId" id="precificacaoInsumoSelect" required></select>
+              </div>
+              <div class="mb-3"><input class="form-control" type="number" step="0.001" name="quantidadeUtilizada" placeholder="Quantidade utilizada" required /></div>
+              <button type="submit" class="btn btn-primary w-100">Salvar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="receitaModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title">Receita Pronta</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <form id="receitaForm">
+              <input type="hidden" name="id" />
+              <div class="mb-3">
+                <select class="form-select" name="insumoId" id="receitaInsumoSelect" required></select>
+              </div>
+              <div class="mb-3"><input class="form-control" type="number" step="0.001" name="quantidadeUtilizada" placeholder="Quantidade utilizada" required /></div>
+              <button type="submit" class="btn btn-primary w-100">Salvar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="campanhaModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title">Campanha</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <form id="campanhaForm">
+              <input type="hidden" name="id" />
+              <div class="mb-3"><input class="form-control" name="nome" placeholder="Nome da campanha" required /></div>
+              <div class="mb-3"><textarea class="form-control" name="descricao" placeholder="Descrição"></textarea></div>
+              <div class="mb-3"><input class="form-control" type="number" step="0.01" name="desconto" placeholder="Desconto" required /></div>
+              <div class="mb-3 form-check">
+                <input class="form-check-input" type="checkbox" name="ativa" checked />
+                <label class="form-check-label">Ativa</label>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">Salvar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="financeiroModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title">Financeiro</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <form id="financeiroForm">
+              <input type="hidden" name="id" />
+              <div class="mb-3">
+                <select class="form-select" name="tipo" required>
+                  <option value="entrada">Entrada</option>
+                  <option value="saida">Saída</option>
+                </select>
+              </div>
+              <div class="mb-3"><input class="form-control" name="descricao" placeholder="Descrição" required /></div>
+              <div class="mb-3"><input class="form-control" name="categoria" placeholder="Categoria" required /></div>
+              <div class="mb-3"><input class="form-control" type="number" step="0.01" name="valor" placeholder="Valor" required /></div>
+              <div class="mb-3"><input class="form-control" type="date" name="dataLancamento" required /></div>
+              <button type="submit" class="btn btn-primary w-100">Salvar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const formatCurrency = (value) => {
+        const n = Number(value || 0);
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
+      };
+
+      const formatDecimal = (value) => Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+
+      const sections = document.querySelectorAll('.app-section');
+      document.querySelectorAll('.nav-link').forEach((button) => {
+        button.addEventListener('click', () => {
+          const target = button.dataset.section;
+          sections.forEach((section) => section.classList.toggle('d-none', section.id !== target));
+          document.querySelectorAll('.nav-link').forEach((link) => link.classList.toggle('active', link === button));
+          const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('offcanvasMenu'));
+          if (offcanvas) offcanvas.hide();
+        });
+      });
+
+      async function fetchJson(url, options = {}) {
+        const response = await fetch(url, {
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          ...options,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || data.error || 'Falha na operação.');
+        return data;
+      }
+
+      async function loadDashboard() {
+        const data = await fetchJson('/api/dashboard');
+        const container = document.getElementById('cardsContainer');
+        container.innerHTML = data.cards.map((card) => `
+          <div class="col-12 col-sm-6 col-lg-4">
+            <div class="metric-card h-100">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="card-title">${card.label}</div>
+                <div class="badge bg-${card.color} rounded-circle p-3"><i class="fa-solid ${card.icon}"></i></div>
+              </div>
+              <div class="value">${typeof card.value === 'number' ? card.value : card.value}</div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      async function loadList(endpoint, targetId, formatter) {
+        const rows = await fetchJson(endpoint);
+        const tbody = document.getElementById(targetId);
+        tbody.innerHTML = rows.length ? rows.map((row, index) => formatter(row, index)).join('') : '<tr><td colspan="100%" class="text-center text-muted">Nenhum registro encontrado.</td></tr>';
+      }
+
+      function addActions(row, path, extra = '') {
+        const id = row.id;
+        return `<div class="btn-group btn-group-sm" role="group">${extra}<button class="btn btn-outline-primary" onclick="editItem('${path}', ${id})"><i class="fa-solid fa-pen"></i></button><button class="btn btn-outline-danger" onclick="deleteItem('${path}', ${id})"><i class="fa-solid fa-trash"></i></button></div>`;
+      }
+
+      function renderUsuarios() {
+        loadList('/api/usuarios', 'usuariosTableBody', (user) => `
+          <tr>
+            <td>${user.nomeCompleto}</td>
+            <td>${user.usuario}</td>
+            <td>${addActions(user, 'usuarios')}</td>
+          </tr>
+        `);
+      }
+
+      function renderClientes() {
+        loadList('/api/clientes', 'clientesTableBody', (cliente) => `
+          <tr>
+            <td>${cliente.nomeCompleto}</td>
+            <td>${cliente.endereco}</td>
+            <td>${cliente.bairro}</td>
+            <td>${cliente.celular}</td>
+            <td>${addActions(cliente, 'clientes')}</td>
+          </tr>
+        `);
+      }
+
+      function renderInsumos() {
+        loadList('/api/insumos', 'insumosTableBody', (insumo) => `
+          <tr>
+            <td>${insumo.produto}</td>
+            <td>${insumo.unidadeMedida}</td>
+            <td>${formatDecimal(insumo.quantidadeCompra)}</td>
+            <td>${formatCurrency(insumo.valor)}</td>
+            <td>${addActions(insumo, 'insumos')}</td>
+          </tr>
+        `);
+      }
+
+      function renderPrecificacao() {
+        loadList('/api/precificacoes', 'precificacaoTableBody', (item) => `
+          <tr>
+            <td>${item.insumo?.produto || '—'}</td>
+            <td>${item.insumo?.unidadeMedida || '—'}</td>
+            <td>${formatDecimal(item.quantidadeUtilizada)}</td>
+            <td>${formatCurrency(item.custo)}</td>
+            <td>${addActions(item, 'precificacoes')}</td>
+          </tr>
+        `);
+      }
+
+      function renderReceitas() {
+        loadList('/api/receitas-prontas', 'receitasTableBody', (item) => `
+          <tr>
+            <td>${item.insumo?.produto || '—'}</td>
+            <td>${item.insumo?.unidadeMedida || '—'}</td>
+            <td>${formatDecimal(item.quantidadeUtilizada)}</td>
+            <td>${formatCurrency(item.custo)}</td>
+            <td>${addActions(item, 'receitas-prontas')}</td>
+          </tr>
+        `);
+      }
+
+      function renderCampanhas() {
+        loadList('/api/campanhas', 'campanhasTableBody', (campanha) => `
+          <tr>
+            <td>${campanha.nome}</td>
+            <td>${formatCurrency(campanha.desconto)}</td>
+            <td>${campanha.ativa ? 'Ativa' : 'Inativa'}</td>
+            <td>${addActions(campanha, 'campanhas')}</td>
+          </tr>
+        `);
+      }
+
+      function renderFinanceiro() {
+        loadList('/api/financeiro', 'financeiroTableBody', (item) => `
+          <tr>
+            <td>${item.tipo}</td>
+            <td>${item.descricao}</td>
+            <td>${item.categoria}</td>
+            <td>${formatCurrency(item.valor)}</td>
+            <td>${addActions(item, 'financeiro')}</td>
+          </tr>
+        `);
+      }
+
+      async function updateReports() {
+        const registros = await fetchJson('/api/financeiro');
+        const totalFinanceiro = registros.reduce((sum, item) => sum + (item.tipo === 'entrada' ? Number(item.valor) : -Number(item.valor)), 0);
+        const precos = await fetchJson('/api/precificacoes');
+        const custoPrecificacao = precos.reduce((sum, item) => sum + Number(item.custo || 0), 0);
+
+        document.getElementById('relatorioFinanceiro').textContent = formatCurrency(totalFinanceiro);
+        document.getElementById('relatorioPrecificacao').textContent = formatCurrency(custoPrecificacao);
+      }
+
+      async function loadAll() {
+        renderUsuarios();
+        renderClientes();
+        renderInsumos();
+        renderPrecificacao();
+        renderReceitas();
+        renderCampanhas();
+        renderFinanceiro();
+        await loadDashboard();
+        await updateReports();
+        await loadInsumosForSelect();
+      }
+
+      async function loadInsumosForSelect() {
+        const insumos = await fetchJson('/api/insumos');
+        const selectMarkup = insumos.map((item) => `<option value="${item.id}">${item.produto} - ${item.unidadeMedida} - ${formatCurrency(item.valor)}</option>`).join('');
+        document.getElementById('precificacaoInsumoSelect').innerHTML = selectMarkup;
+        document.getElementById('receitaInsumoSelect').innerHTML = selectMarkup;
+      }
+
+      function fillForm(formId, data) {
+        const form = document.getElementById(formId);
+        Object.entries(data).forEach(([key, value]) => {
+          const field = form.querySelector(`[name="${key}"]`);
+          if (!field) return;
+          if (field.type === 'checkbox') {
+            field.checked = Boolean(value);
+          } else {
+            field.value = value ?? '';
+          }
+        });
+      }
+
+      async function editItem(path, id) {
+        const data = await fetchJson(`/api/${path}/${id}`);
+        const formMap = {
+          usuarios: 'userForm',
+          clientes: 'clienteForm',
+          insumos: 'insumoForm',
+          campanhas: 'campanhaForm',
+          financeiro: 'financeiroForm',
+          precificacoes: 'precificacaoForm',
+          'receitas-prontas': 'receitaForm',
+        };
+
+        const modalMap = {
+          usuarios: 'userModal',
+          clientes: 'clienteModal',
+          insumos: 'insumoModal',
+          campanhas: 'campanhaModal',
+          financeiro: 'financeiroModal',
+          precificacoes: 'precificacaoModal',
+          'receitas-prontas': 'receitaModal',
+        };
+
+        const formId = formMap[path];
+        const modalId = modalMap[path];
+
+        if (!formId || !modalId) {
+          console.error('Rota de edição não mapeada:', path);
+          return;
+        }
+
+        if (path === 'usuarios') fillForm('userForm', data);
+        if (path === 'clientes') fillForm('clienteForm', data);
+        if (path === 'insumos') fillForm('insumoForm', data);
+        if (path === 'campanhas') fillForm('campanhaForm', data);
+        if (path === 'financeiro') fillForm('financeiroForm', data);
+        if (path === 'precificacoes') {
+          fillForm('precificacaoForm', data);
+          document.getElementById('precificacaoInsumoSelect').value = data.insumoId;
+        }
+        if (path === 'receitas-prontas') {
+          fillForm('receitaForm', data);
+          document.getElementById('receitaInsumoSelect').value = data.insumoId;
+        }
+
+        const modalElement = document.getElementById(modalId);
+        if (!modalElement) {
+          console.error('Modal não encontrada para o item:', path, modalId);
+          return;
+        }
+
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+      }
+
+      async function deleteItem(path, id) {
+        if (!confirm('Deseja excluir este registro?')) return;
+        await fetchJson(`/api/${path}/${id}`, { method: 'DELETE' });
+        await loadAll();
+      }
+
+      function bindForm(formId, route, onSuccess) {
+        const form = document.getElementById(formId);
+        if (!form) {
+          console.warn(`Formulário não encontrado: ${formId}`);
+          return;
+        }
+
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+
+          const payload = Object.fromEntries(new FormData(form).entries());
+
+          if (formId === 'campanhaForm') {
+            payload.ativa = form.querySelector('[name="ativa"]').checked;
+          }
+          if (formId === 'userForm' && !payload.senha) {
+            delete payload.senha;
+          }
+
+          const id = payload.id;
+          const url = id ? `${route}/${id}` : route;
+          const method = id ? 'PUT' : 'POST';
+
+          try {
+            await fetchJson(url, { method, body: JSON.stringify(payload) });
+            form.reset();
+            onSuccess?.();
+          } catch (error) {
+            console.error(`Erro ao salvar ${formId}:`, error);
+            alert(error.message || 'Erro ao salvar registro.');
+          }
+        });
+      }
+
+      function bindModalReset(modalId, formId) {
+        const modal = document.getElementById(modalId);
+        const form = document.getElementById(formId);
+        if (modal && form) {
+          modal.addEventListener('hidden.bs.modal', () => form.reset());
+        }
+      }
+
+      bindModalReset('userModal', 'userForm');
+      bindModalReset('clienteModal', 'clienteForm');
+      bindModalReset('insumoModal', 'insumoForm');
+      bindModalReset('precificacaoModal', 'precificacaoForm');
+      bindModalReset('receitaModal', 'receitaForm');
+      bindModalReset('campanhaModal', 'campanhaForm');
+      bindModalReset('financeiroModal', 'financeiroForm');
+
+      bindForm('userForm', '/api/usuarios', () => {
+        bootstrap.Modal.getInstance(document.getElementById('userModal'))?.hide();
+        renderUsuarios();
+      });
+
+      bindForm('clienteForm', '/api/clientes', () => {
+        bootstrap.Modal.getInstance(document.getElementById('clienteModal'))?.hide();
+        renderClientes();
+      });
+
+      bindForm('insumoForm', '/api/insumos', () => {
+        bootstrap.Modal.getInstance(document.getElementById('insumoModal'))?.hide();
+        renderInsumos();
+        loadInsumosForSelect();
+      });
+
+      bindForm('campanhaForm', '/api/campanhas', () => {
+        bootstrap.Modal.getInstance(document.getElementById('campanhaModal'))?.hide();
+        renderCampanhas();
+      });
+
+      bindForm('financeiroForm', '/api/financeiro', () => {
+        bootstrap.Modal.getInstance(document.getElementById('financeiroModal'))?.hide();
+        renderFinanceiro();
+        updateReports();
+      });
+
+      bindForm('precificacaoForm', '/api/precificacoes', () => {
+        bootstrap.Modal.getInstance(document.getElementById('precificacaoModal'))?.hide();
+        renderPrecificacao();
+        updateReports();
+      });
+
+      bindForm('receitaForm', '/api/receitas-prontas', () => {
+        bootstrap.Modal.getInstance(document.getElementById('receitaModal'))?.hide();
+        renderReceitas();
+        updateReports();
+      });
+
+      document.addEventListener('DOMContentLoaded', async () => {
+        try {
+          const session = await fetchJson('/api/session');
+          if (!session.loggedIn) {
+            window.location.href = '/login';
+            return;
+          }
+          await loadAll();
+        } catch (error) {
+          console.error(error);
+          window.location.href = '/login';
+        }
+      });
+    </script>
+  </body>
+</html>
