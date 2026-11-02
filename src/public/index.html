@@ -86,6 +86,157 @@
         padding: .8rem 1rem;
       }
 
+      .alfabeto-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .4rem;
+      }
+
+      .alfabeto-chip {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .3rem;
+        min-width: 2.4rem;
+        height: 2.4rem;
+        padding: 0 .65rem;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--panel);
+        color: var(--muted);
+        font-size: .9rem;
+        font-weight: 700;
+        line-height: 1;
+        transition: background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
+      }
+
+      .alfabeto-chip .chip-count {
+        font-size: .68rem;
+        font-weight: 600;
+        opacity: .7;
+      }
+
+      .alfabeto-chip.active {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+        box-shadow: 0 8px 18px rgba(217, 106, 139, 0.32);
+      }
+
+      .alfabeto-chip.active .chip-count { opacity: .9; }
+
+      .mobile-cards {
+        display: grid;
+        gap: .85rem;
+      }
+
+      .mobile-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 1rem;
+        box-shadow: 0 10px 24px rgba(160, 92, 117, 0.08);
+      }
+
+      .mobile-card-header {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+      }
+
+      .mobile-avatar {
+        flex: 0 0 46px;
+        width: 46px;
+        height: 46px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), #e9a0b3);
+        color: #fff;
+        font-size: 1.15rem;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .mobile-card-title {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .mobile-card-name {
+        font-weight: 700;
+        line-height: 1.2;
+        word-break: break-word;
+      }
+
+      .mobile-card-subtitle {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        margin-top: .2rem;
+        color: var(--muted);
+        font-size: .85rem;
+        text-decoration: none;
+      }
+
+      a.mobile-card-subtitle:hover { color: var(--primary-dark); }
+
+      .mobile-card-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .6rem .75rem;
+        margin-top: .85rem;
+        padding-top: .85rem;
+        border-top: 1px dashed var(--border);
+      }
+
+      .mobile-detail { min-width: 0; font-size: .85rem; }
+      .mobile-detail.full { grid-column: 1 / -1; }
+
+      .mobile-detail .rotulo {
+        display: block;
+        margin-bottom: .1rem;
+        color: var(--muted);
+        font-size: .66rem;
+        font-weight: 600;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+
+      .mobile-detail .valor {
+        color: var(--text);
+        font-weight: 500;
+        word-break: break-word;
+      }
+
+      .mobile-card-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: .85rem;
+      }
+
+      .mobile-card-actions .btn {
+        padding: .45rem .8rem;
+      }
+
+      .mobile-empty {
+        padding: 2rem 1rem;
+        border: 1px dashed var(--border);
+        border-radius: 18px;
+        background: var(--panel);
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .mobile-empty i {
+        display: block;
+        margin-bottom: .5rem;
+        font-size: 1.5rem;
+        opacity: .6;
+      }
+
       @media (min-width: 992px) {
         .main-shell { padding: 2rem; }
       }
@@ -94,7 +245,7 @@
   <body>
     <nav class="topbar navbar navbar-expand-lg shadow-sm">
       <div class="container-fluid px-3 px-lg-4">
-        <a class="navbar-brand brand" href="#"><i class="fa-solid fa-cake-candles me-2"></i>Confeitaria Criativa</a>
+        <a class="navbar-brand brand" href="/"><i class="fa-solid fa-cake-candles me-2"></i>Confeitaria Criativa</a>
         <button class="btn btn-outline-secondary ms-auto" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
           <i class="fa-solid fa-bars"></i>
         </button>
@@ -133,9 +284,14 @@
       <section id="usuarios" class="app-section d-none">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h2 class="mb-0">Usuários</h2>
-          <button class="btn btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#userModal"><i class="fa-solid fa-plus me-2"></i>Novo</button>
+          <button class="btn btn-primary action-btn" onclick="openNewItem('userForm', 'userModal')"><i class="fa-solid fa-plus me-2"></i>Novo</button>
         </div>
-        <div class="card nav-card p-3">
+        <div class="d-md-none">
+          <div id="usuariosAlfabeto" class="alfabeto-bar mb-3" role="group" aria-label="Filtrar usuários pela letra inicial"></div>
+          <div id="usuariosCards" class="mobile-cards"></div>
+        </div>
+
+        <div class="card nav-card p-3 d-none d-md-block">
           <div class="table-wrap">
             <table class="table table-hover align-middle mb-0">
               <thead>
@@ -154,9 +310,15 @@
       <section id="clientes" class="app-section d-none">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h2 class="mb-0">Clientes</h2>
-          <button class="btn btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#clienteModal"><i class="fa-solid fa-plus me-2"></i>Novo</button>
+          <button class="btn btn-primary action-btn" onclick="openNewItem('clienteForm', 'clienteModal')"><i class="fa-solid fa-plus me-2"></i>Novo</button>
         </div>
-        <div class="card nav-card p-3">
+
+        <div class="d-md-none">
+          <div id="clientesAlfabeto" class="alfabeto-bar mb-3" role="group" aria-label="Filtrar clientes pela letra inicial"></div>
+          <div id="clientesCards" class="mobile-cards"></div>
+        </div>
+
+        <div class="card nav-card p-3 d-none d-md-block">
           <div class="table-wrap">
             <table class="table table-hover align-middle mb-0">
               <thead>
@@ -177,9 +339,14 @@
       <section id="insumos" class="app-section d-none">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h2 class="mb-0">Insumos</h2>
-          <button class="btn btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#insumoModal"><i class="fa-solid fa-plus me-2"></i>Novo</button>
+          <button class="btn btn-primary action-btn" onclick="openNewItem('insumoForm', 'insumoModal')"><i class="fa-solid fa-plus me-2"></i>Novo</button>
         </div>
-        <div class="card nav-card p-3">
+        <div class="d-md-none">
+          <div id="insumosAlfabeto" class="alfabeto-bar mb-3" role="group" aria-label="Filtrar insumos pela letra inicial"></div>
+          <div id="insumosCards" class="mobile-cards"></div>
+        </div>
+
+        <div class="card nav-card p-3 d-none d-md-block">
           <div class="table-wrap">
             <table class="table table-hover align-middle mb-0">
               <thead>
@@ -200,9 +367,14 @@
       <section id="precificacao" class="app-section d-none">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h2 class="mb-0">Precificação</h2>
-          <button class="btn btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#precificacaoModal"><i class="fa-solid fa-plus me-2"></i>Adicionar</button>
+          <button class="btn btn-primary action-btn" onclick="openNewItem('precificacaoForm', 'precificacaoModal')"><i class="fa-solid fa-plus me-2"></i>Adicionar</button>
         </div>
-        <div class="card nav-card p-3">
+        <div class="d-md-none">
+          <div id="precificacaoAlfabeto" class="alfabeto-bar mb-3" role="group" aria-label="Filtrar precificação pela letra inicial do produto"></div>
+          <div id="precificacaoCards" class="mobile-cards"></div>
+        </div>
+
+        <div class="card nav-card p-3 d-none d-md-block">
           <div class="table-wrap">
             <table class="table table-hover align-middle mb-0">
               <thead>
@@ -223,9 +395,14 @@
       <section id="receitas" class="app-section d-none">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h2 class="mb-0">Receitas Prontas</h2>
-          <button class="btn btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#receitaModal"><i class="fa-solid fa-plus me-2"></i>Adicionar</button>
+          <button class="btn btn-primary action-btn" onclick="openNewItem('receitaForm', 'receitaModal')"><i class="fa-solid fa-plus me-2"></i>Adicionar</button>
         </div>
-        <div class="card nav-card p-3">
+        <div class="d-md-none">
+          <div id="receitasAlfabeto" class="alfabeto-bar mb-3" role="group" aria-label="Filtrar receitas pela letra inicial do produto"></div>
+          <div id="receitasCards" class="mobile-cards"></div>
+        </div>
+
+        <div class="card nav-card p-3 d-none d-md-block">
           <div class="table-wrap">
             <table class="table table-hover align-middle mb-0">
               <thead>
@@ -246,9 +423,14 @@
       <section id="campanhas" class="app-section d-none">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h2 class="mb-0">Campanhas</h2>
-          <button class="btn btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#campanhaModal"><i class="fa-solid fa-plus me-2"></i>Novo</button>
+          <button class="btn btn-primary action-btn" onclick="openNewItem('campanhaForm', 'campanhaModal')"><i class="fa-solid fa-plus me-2"></i>Novo</button>
         </div>
-        <div class="card nav-card p-3">
+        <div class="d-md-none">
+          <div id="campanhasAlfabeto" class="alfabeto-bar mb-3" role="group" aria-label="Filtrar campanhas pela letra inicial"></div>
+          <div id="campanhasCards" class="mobile-cards"></div>
+        </div>
+
+        <div class="card nav-card p-3 d-none d-md-block">
           <div class="table-wrap">
             <table class="table table-hover align-middle mb-0">
               <thead>
@@ -268,9 +450,14 @@
       <section id="financeiro" class="app-section d-none">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h2 class="mb-0">Controle Financeiro</h2>
-          <button class="btn btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#financeiroModal"><i class="fa-solid fa-plus me-2"></i>Novo</button>
+          <button class="btn btn-primary action-btn" onclick="openNewItem('financeiroForm', 'financeiroModal')"><i class="fa-solid fa-plus me-2"></i>Novo</button>
         </div>
-        <div class="card nav-card p-3">
+        <div class="d-md-none">
+          <div id="financeiroAlfabeto" class="alfabeto-bar mb-3" role="group" aria-label="Filtrar lançamentos pela letra inicial da descrição"></div>
+          <div id="financeiroCards" class="mobile-cards"></div>
+        </div>
+
+        <div class="card nav-card p-3 d-none d-md-block">
           <div class="table-wrap">
             <table class="table table-hover align-middle mb-0">
               <thead>
@@ -462,6 +649,19 @@
 
       const formatDecimal = (value) => Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
+      const escapeHtml = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+      const getInitial = (nome) => {
+        const normalized = String(nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const letter = normalized.charAt(0).toUpperCase();
+        return /[A-Z]/.test(letter) ? letter : '#';
+      };
+
       const sections = document.querySelectorAll('.app-section');
       document.querySelectorAll('.nav-link').forEach((button) => {
         button.addEventListener('click', () => {
@@ -503,7 +703,10 @@
       async function loadList(endpoint, targetId, formatter) {
         const rows = await fetchJson(endpoint);
         const tbody = document.getElementById(targetId);
-        tbody.innerHTML = rows.length ? rows.map((row, index) => formatter(row, index)).join('') : '<tr><td colspan="100%" class="text-center text-muted">Nenhum registro encontrado.</td></tr>';
+        if (tbody) {
+          tbody.innerHTML = rows.length ? rows.map((row, index) => formatter(row, index)).join('') : '<tr><td colspan="100%" class="text-center text-muted">Nenhum registro encontrado.</td></tr>';
+        }
+        return rows;
       }
 
       function addActions(row, path, extra = '') {
@@ -511,30 +714,276 @@
         return `<div class="btn-group btn-group-sm" role="group">${extra}<button class="btn btn-outline-primary" onclick="editItem('${path}', ${id})"><i class="fa-solid fa-pen"></i></button><button class="btn btn-outline-danger" onclick="deleteItem('${path}', ${id})"><i class="fa-solid fa-trash"></i></button></div>`;
       }
 
-      function renderUsuarios() {
-        loadList('/api/usuarios', 'usuariosTableBody', (user) => `
+      async function renderUsuarios() {
+        const rows = await loadList('/api/usuarios', 'usuariosTableBody', (user) => `
           <tr>
             <td>${user.nomeCompleto}</td>
             <td>${user.usuario}</td>
             <td>${addActions(user, 'usuarios')}</td>
           </tr>
         `);
+        renderMobileList('usuarios', rows);
       }
 
-      function renderClientes() {
-        loadList('/api/clientes', 'clientesTableBody', (cliente) => `
+      const mobileListStates = {};
+
+      function mobileCardHtml({ initial, title, subtitle = '', details = [], actions = '' }) {
+        const detailsMarkup = details.length
+          ? `
+            <div class="mobile-card-details">
+              ${details.map((detail) => `
+                <div class="mobile-detail${detail.full ? ' full' : ''}">
+                  <span class="rotulo">${escapeHtml(detail.label)}</span>
+                  <span class="valor">${escapeHtml(detail.value || '—')}</span>
+                </div>
+              `).join('')}
+            </div>
+          `
+          : '';
+
+        return `
+          <div class="mobile-card">
+            <div class="mobile-card-header">
+              <div class="mobile-avatar">${escapeHtml(initial)}</div>
+              <div class="mobile-card-title">
+                <div class="mobile-card-name">${escapeHtml(title)}</div>
+                ${subtitle}
+              </div>
+            </div>
+            ${detailsMarkup}
+            ${actions ? `<div class="mobile-card-actions">${actions}</div>` : ''}
+          </div>
+        `;
+      }
+
+      const mobileListConfigs = {
+        usuarios: {
+          alphabetId: 'usuariosAlfabeto',
+          cardsId: 'usuariosCards',
+          getLabel: (row) => row.nomeCompleto,
+          getCard: (row) => mobileCardHtml({
+            initial: getInitial(row.nomeCompleto),
+            title: row.nomeCompleto,
+            subtitle: `<span class="mobile-card-subtitle"><i class="fa-solid fa-user"></i>${escapeHtml(row.usuario)}</span>`,
+            actions: addActions(row, 'usuarios'),
+          }),
+        },
+        clientes: {
+          alphabetId: 'clientesAlfabeto',
+          cardsId: 'clientesCards',
+          getLabel: (row) => row.nomeCompleto,
+          getCard: (row) => {
+            const telefone = String(row.celular || '').replace(/\D/g, '');
+            const subtitle = row.celular
+              ? `<a class="mobile-card-subtitle" href="tel:${telefone}"><i class="fa-solid fa-mobile-screen-button"></i>${escapeHtml(row.celular)}</a>`
+              : '';
+
+            return mobileCardHtml({
+              initial: getInitial(row.nomeCompleto),
+              title: row.nomeCompleto,
+              subtitle,
+              details: [
+                { label: 'Endereço', value: row.endereco, full: true },
+                { label: 'Bairro', value: row.bairro },
+                { label: 'CEP', value: row.cep },
+              ],
+              actions: addActions(row, 'clientes'),
+            });
+          },
+        },
+        insumos: {
+          alphabetId: 'insumosAlfabeto',
+          cardsId: 'insumosCards',
+          getLabel: (row) => row.produto,
+          getCard: (row) => mobileCardHtml({
+            initial: getInitial(row.produto),
+            title: row.produto,
+            subtitle: `<span class="mobile-card-subtitle"><i class="fa-solid fa-scale-balanced"></i>${escapeHtml(row.unidadeMedida)}</span>`,
+            details: [
+              { label: 'Quantidade', value: formatDecimal(row.quantidadeCompra) },
+              { label: 'Valor', value: formatCurrency(row.valor) },
+            ],
+            actions: addActions(row, 'insumos'),
+          }),
+        },
+        precificacao: {
+          alphabetId: 'precificacaoAlfabeto',
+          cardsId: 'precificacaoCards',
+          getLabel: (row) => row.insumo?.produto || '',
+          getCard: (row) => mobileCardHtml({
+            initial: getInitial(row.insumo?.produto),
+            title: row.insumo?.produto || '—',
+            subtitle: `<span class="mobile-card-subtitle"><i class="fa-solid fa-scale-balanced"></i>${escapeHtml(row.insumo?.unidadeMedida || '—')}</span>`,
+            details: [
+              { label: 'Qtd. Usada', value: formatDecimal(row.quantidadeUtilizada) },
+              { label: 'Custo', value: formatCurrency(row.custo) },
+            ],
+            actions: addActions(row, 'precificacoes'),
+          }),
+        },
+        receitas: {
+          alphabetId: 'receitasAlfabeto',
+          cardsId: 'receitasCards',
+          getLabel: (row) => row.insumo?.produto || '',
+          getCard: (row) => mobileCardHtml({
+            initial: getInitial(row.insumo?.produto),
+            title: row.insumo?.produto || '—',
+            subtitle: `<span class="mobile-card-subtitle"><i class="fa-solid fa-scale-balanced"></i>${escapeHtml(row.insumo?.unidadeMedida || '—')}</span>`,
+            details: [
+              { label: 'Qtd. Usada', value: formatDecimal(row.quantidadeUtilizada) },
+              { label: 'Custo', value: formatCurrency(row.custo) },
+            ],
+            actions: addActions(row, 'receitas-prontas'),
+          }),
+        },
+        campanhas: {
+          alphabetId: 'campanhasAlfabeto',
+          cardsId: 'campanhasCards',
+          getLabel: (row) => row.nome,
+          getCard: (row) => mobileCardHtml({
+            initial: getInitial(row.nome),
+            title: row.nome,
+            subtitle: row.ativa
+              ? '<span class="mobile-card-subtitle text-success"><i class="fa-solid fa-circle-check"></i>Ativa</span>'
+              : '<span class="mobile-card-subtitle text-danger"><i class="fa-solid fa-circle-xmark"></i>Inativa</span>',
+            details: [
+              { label: 'Desconto', value: formatCurrency(row.desconto) },
+              ...(row.descricao ? [{ label: 'Descrição', value: row.descricao, full: true }] : []),
+            ],
+            actions: addActions(row, 'campanhas'),
+          }),
+        },
+        financeiro: {
+          alphabetId: 'financeiroAlfabeto',
+          cardsId: 'financeiroCards',
+          getLabel: (row) => row.descricao,
+          getCard: (row) => {
+            const entrada = row.tipo === 'entrada';
+            return mobileCardHtml({
+              initial: getInitial(row.descricao),
+              title: row.descricao,
+              subtitle: `<span class="mobile-card-subtitle ${entrada ? 'text-success' : 'text-danger'}"><i class="fa-solid fa-arrow-${entrada ? 'down' : 'up'}"></i>${entrada ? 'Entrada' : 'Saída'}</span>`,
+              details: [
+                { label: 'Categoria', value: row.categoria },
+                { label: 'Valor', value: formatCurrency(row.valor) },
+              ],
+              actions: addActions(row, 'financeiro'),
+            });
+          },
+        },
+      };
+
+      function renderMobileList(key, rows) {
+        const config = mobileListConfigs[key];
+        if (!config) return;
+
+        mobileListStates[key] = {
+          rows,
+          letra: mobileListStates[key]?.letra || '',
+        };
+
+        renderMobileAlphabet(key);
+        renderMobileCards(key);
+      }
+
+      function renderMobileAlphabet(key) {
+        const config = mobileListConfigs[key];
+        const state = mobileListStates[key];
+        const container = document.getElementById(config.alphabetId);
+        if (!container || !state) return;
+
+        const contagem = state.rows.reduce((acc, row) => {
+          const letra = getInitial(config.getLabel(row));
+          acc[letra] = (acc[letra] || 0) + 1;
+          return acc;
+        }, {});
+
+        const letras = Object.keys(contagem).sort((a, b) => {
+          if (a === '#') return 1;
+          if (b === '#') return -1;
+          return a.localeCompare(b, 'pt-BR');
+        });
+
+        if (state.letra && !contagem[state.letra]) {
+          state.letra = '';
+        }
+
+        if (!state.rows.length) {
+          container.innerHTML = '';
+          return;
+        }
+
+        const chip = (letra, rotulo, total) => `
+          <button
+            type="button"
+            class="alfabeto-chip${state.letra === letra ? ' active' : ''}"
+            data-letra="${letra}"
+            onclick="filtrarMobileList('${key}', '${letra}')"
+            aria-pressed="${state.letra === letra}"
+          >
+            ${rotulo}<span class="chip-count">${total}</span>
+          </button>
+        `;
+
+        container.innerHTML = [
+          chip('', 'Todos', state.rows.length),
+          ...letras.map((letra) => chip(letra, letra, contagem[letra])),
+        ].join('');
+      }
+
+      function filtrarMobileList(key, letra) {
+        const config = mobileListConfigs[key];
+        const state = mobileListStates[key];
+        if (!config || !state) return;
+
+        state.letra = letra;
+        document.querySelectorAll(`#${config.alphabetId} .alfabeto-chip`).forEach((chip) => {
+          const ativo = chip.dataset.letra === letra;
+          chip.classList.toggle('active', ativo);
+          chip.setAttribute('aria-pressed', String(ativo));
+        });
+        renderMobileCards(key);
+      }
+
+      function renderMobileCards(key) {
+        const config = mobileListConfigs[key];
+        const state = mobileListStates[key];
+        const container = document.getElementById(config.cardsId);
+        if (!container || !state) return;
+
+        const rows = (state.letra
+          ? state.rows.filter((row) => getInitial(config.getLabel(row)) === state.letra)
+          : [...state.rows]
+        ).sort((a, b) => String(config.getLabel(a) || '').localeCompare(String(config.getLabel(b) || ''), 'pt-BR'));
+
+        if (!rows.length) {
+          container.innerHTML = `
+            <div class="mobile-empty">
+              <i class="fa-solid fa-inbox"></i>
+              <p class="mb-0">Nenhum registro encontrado.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = rows.map(config.getCard).join('');
+      }
+
+      async function renderClientes() {
+        const rows = await loadList('/api/clientes', 'clientesTableBody', (cliente) => `
           <tr>
-            <td>${cliente.nomeCompleto}</td>
-            <td>${cliente.endereco}</td>
-            <td>${cliente.bairro}</td>
-            <td>${cliente.celular}</td>
+            <td>${escapeHtml(cliente.nomeCompleto)}</td>
+            <td>${escapeHtml(cliente.endereco)}</td>
+            <td>${escapeHtml(cliente.bairro)}</td>
+            <td>${escapeHtml(cliente.celular)}</td>
             <td>${addActions(cliente, 'clientes')}</td>
           </tr>
         `);
+        renderMobileList('clientes', rows);
       }
 
-      function renderInsumos() {
-        loadList('/api/insumos', 'insumosTableBody', (insumo) => `
+      async function renderInsumos() {
+        const rows = await loadList('/api/insumos', 'insumosTableBody', (insumo) => `
           <tr>
             <td>${insumo.produto}</td>
             <td>${insumo.unidadeMedida}</td>
@@ -543,10 +992,11 @@
             <td>${addActions(insumo, 'insumos')}</td>
           </tr>
         `);
+        renderMobileList('insumos', rows);
       }
 
-      function renderPrecificacao() {
-        loadList('/api/precificacoes', 'precificacaoTableBody', (item) => `
+      async function renderPrecificacao() {
+        const rows = await loadList('/api/precificacoes', 'precificacaoTableBody', (item) => `
           <tr>
             <td>${item.insumo?.produto || '—'}</td>
             <td>${item.insumo?.unidadeMedida || '—'}</td>
@@ -555,10 +1005,11 @@
             <td>${addActions(item, 'precificacoes')}</td>
           </tr>
         `);
+        renderMobileList('precificacao', rows);
       }
 
-      function renderReceitas() {
-        loadList('/api/receitas-prontas', 'receitasTableBody', (item) => `
+      async function renderReceitas() {
+        const rows = await loadList('/api/receitas-prontas', 'receitasTableBody', (item) => `
           <tr>
             <td>${item.insumo?.produto || '—'}</td>
             <td>${item.insumo?.unidadeMedida || '—'}</td>
@@ -567,10 +1018,11 @@
             <td>${addActions(item, 'receitas-prontas')}</td>
           </tr>
         `);
+        renderMobileList('receitas', rows);
       }
 
-      function renderCampanhas() {
-        loadList('/api/campanhas', 'campanhasTableBody', (campanha) => `
+      async function renderCampanhas() {
+        const rows = await loadList('/api/campanhas', 'campanhasTableBody', (campanha) => `
           <tr>
             <td>${campanha.nome}</td>
             <td>${formatCurrency(campanha.desconto)}</td>
@@ -578,10 +1030,11 @@
             <td>${addActions(campanha, 'campanhas')}</td>
           </tr>
         `);
+        renderMobileList('campanhas', rows);
       }
 
-      function renderFinanceiro() {
-        loadList('/api/financeiro', 'financeiroTableBody', (item) => `
+      async function renderFinanceiro() {
+        const rows = await loadList('/api/financeiro', 'financeiroTableBody', (item) => `
           <tr>
             <td>${item.tipo}</td>
             <td>${item.descricao}</td>
@@ -590,6 +1043,7 @@
             <td>${addActions(item, 'financeiro')}</td>
           </tr>
         `);
+        renderMobileList('financeiro', rows);
       }
 
       async function updateReports() {
@@ -620,6 +1074,21 @@
         const selectMarkup = insumos.map((item) => `<option value="${item.id}">${item.produto} - ${item.unidadeMedida} - ${formatCurrency(item.valor)}</option>`).join('');
         document.getElementById('precificacaoInsumoSelect').innerHTML = selectMarkup;
         document.getElementById('receitaInsumoSelect').innerHTML = selectMarkup;
+      }
+
+      function openNewItem(formId, modalId) {
+        const form = document.getElementById(formId);
+        if (form) {
+          form.reset();
+          form.dataset.mode = 'create';
+          const idField = form.querySelector('[name="id"]');
+          if (idField) idField.value = '';
+        }
+
+        const modalElement = document.getElementById(modalId);
+        if (!modalElement) return;
+
+        bootstrap.Modal.getOrCreateInstance(modalElement).show();
       }
 
       function fillForm(formId, data) {
@@ -665,6 +1134,12 @@
           return;
         }
 
+        const form = document.getElementById(formId);
+        if (form) {
+          form.reset();
+          form.dataset.mode = 'edit';
+        }
+
         if (path === 'usuarios') fillForm('userForm', data);
         if (path === 'clientes') fillForm('clienteForm', data);
         if (path === 'insumos') fillForm('insumoForm', data);
@@ -685,8 +1160,7 @@
           return;
         }
 
-        const modal = new bootstrap.Modal(modalElement);
-        modal.show();
+        bootstrap.Modal.getOrCreateInstance(modalElement).show();
       }
 
       async function deleteItem(path, id) {
@@ -714,9 +1188,12 @@
             delete payload.senha;
           }
 
-          const id = payload.id;
-          const url = id ? `${route}/${id}` : route;
-          const method = id ? 'PUT' : 'POST';
+          const id = String(payload.id || '').trim();
+          const isUpdate = form.dataset.mode === 'edit' && /^\d+$/.test(id);
+          delete payload.id;
+
+          const url = isUpdate ? `${route}/${id}` : route;
+          const method = isUpdate ? 'PUT' : 'POST';
 
           try {
             await fetchJson(url, { method, body: JSON.stringify(payload) });
@@ -733,7 +1210,12 @@
         const modal = document.getElementById(modalId);
         const form = document.getElementById(formId);
         if (modal && form) {
-          modal.addEventListener('hidden.bs.modal', () => form.reset());
+          modal.addEventListener('hidden.bs.modal', () => {
+            form.reset();
+            form.dataset.mode = 'create';
+            const idField = form.querySelector('[name="id"]');
+            if (idField) idField.value = '';
+          });
         }
       }
 
